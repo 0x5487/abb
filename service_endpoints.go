@@ -1,14 +1,20 @@
-package octopus
+package abb
 
 import "github.com/jasonsoft/napnap"
 
 func NewServiceRouter() *napnap.Router {
 	router := napnap.NewRouter()
-	router.Post("/v1/services", ServiceCreateEndpoint)
+
+	router.Get("/v1/services", serviceListEndpoint)
+	router.Post("/v1/services", serviceCreateEndpoint)
 
 	return router
 }
 
-func ServiceCreateEndpoint(c *napnap.Context) {
+func serviceCreateEndpoint(c *napnap.Context) {
+
+}
+
+func serviceListEndpoint(c *napnap.Context) {
 
 }
