@@ -1,6 +1,8 @@
 package abb
 
 import (
+	"context"
+
 	"github.com/docker/docker/client"
 )
 
@@ -8,8 +10,8 @@ type Manager struct {
 	client *client.Client
 }
 
-func NewManager(address string) (*Manager, error) {
-	client, err := client.NewClient(address, "v1.27", nil, nil)
+func NewManager(host string) (*Manager, error) {
+	client, err := client.NewClient(host, "v1.27", nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -19,15 +21,15 @@ func NewManager(address string) (*Manager, error) {
 	}, nil
 }
 
-func (m *Manager) ServiceList() *[]Service {
-	return nil
+func (m *Manager) ServiceList(ctx context.Context) (*[]Service, error) {
+	return nil, nil
 }
 
 func (m *Manager) ServiceGet() {
 
 }
 
-func (m *Manager) ServiceCreate(svc *Service) *Service {
+func (m *Manager) ServiceCreate(ctx context.Context, svc *Service) *Service {
 	// save service to database
 	return nil
 }
