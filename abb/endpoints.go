@@ -2,6 +2,7 @@ package abb
 
 import (
 	"github.com/jasonsoft/abb/app"
+	"github.com/jasonsoft/abb/types"
 	"github.com/jasonsoft/log"
 	"github.com/jasonsoft/napnap"
 
@@ -17,13 +18,21 @@ func NewAbbRouter() *napnap.Router {
 
 	router.Get("/v1/clusters", clusterListEndpoint)
 
+	// nodes
+	router.Get("/v1/clusters/:cluster_name/nodes", nodeListEndpoint)
+	router.Get("/v1/clusters/:cluster_name/nodes/:node_id", nodeGetEndpoint)
+	router.Post("/v1/clusters/:cluster_name/nodes/:node_id", nodeUpdateEndpoint)
+
+	// network
+	router.Get("/v1/clusters/:cluster_name/networks", networkListEndpoint)
+
+	// service
 	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/restart", serviceRestartEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/force-update", serviceForceUpdateEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/rollback", serviceRollbackEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services", serviceListEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services", serviceCreateEndpoint)
-
 	router.Delete("/v1/clusters/:cluster_name/services/:service_id", serviceDeleteEndpoint)
 
 	return router
@@ -31,6 +40,133 @@ func NewAbbRouter() *napnap.Router {
 
 func clusterListEndpoint(c *napnap.Context) {
 
+}
+
+func networkListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	opt := dockerTypes.NetworkListOptions{}
+	networkList, err := cluster.Client.NetworkList(ctx, opt)
+	if err != nil {
+		panic(err)
+	}
+
+	pagination.SetTotalCount(len(networkList))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       networkList,
+	}
+
+	c.JSON(200, apiResult)
+}
+
+func nodeGetEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	nodeID := c.Param("node_id")
+	if len(nodeID) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "node_id parameter was invalid"})
+	}
+
+	node, _, err := cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(200, node)
+}
+
+func nodeUpdateEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	nodeID := c.Param("node_id")
+	if len(nodeID) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "node_id parameter was invalid"})
+	}
+
+	nodeSpec := swarm.NodeSpec{}
+	err = c.BindJSON(&nodeSpec)
+	if err != nil {
+		panic(err)
+	}
+
+	node, _, err := cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	if err != nil {
+		panic(err)
+	}
+
+	err = cluster.Client.NodeUpdate(ctx, nodeID, node.Version, nodeSpec)
+	if err != nil {
+		panic(err)
+	}
+
+	// refresh
+	node, _, err = cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(200, node)
+}
+
+func nodeListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	opt := dockerTypes.NodeListOptions{}
+	nodeList, err := cluster.Client.NodeList(ctx, opt)
+	if err != nil {
+		panic(err)
+	}
+
+	pagination.SetTotalCount(len(nodeList))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       nodeList,
+	}
+
+	c.JSON(200, apiResult)
 }
 
 func serviceForceUpdateEndpoint(c *napnap.Context) {
@@ -62,6 +198,12 @@ func serviceForceUpdateEndpoint(c *napnap.Context) {
 	newSpec := oldSvc.Spec
 
 	// create newSpec
+	log.Infof("abb: force-update image: %s", newSpec.TaskTemplate.ContainerSpec.Image)
+	imagePaths := strings.Split(newSpec.TaskTemplate.ContainerSpec.Image, "@")
+	if len(imagePaths) > 0 {
+		newSpec.TaskTemplate.ContainerSpec.Image = imagePaths[0]
+	}
+
 	newSpec.TaskTemplate.ForceUpdate = uint64(1)
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
 	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
@@ -275,16 +417,41 @@ func serviceListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
-	opt := dockerTypes.ServiceListOptions{}
-	svcList, err := cluster.Client.ServiceList(ctx, opt)
+	// get all nodes
+	nodeListOpt := dockerTypes.NodeListOptions{}
+	nodeList, err := cluster.Client.NodeList(ctx, nodeListOpt)
 	if err != nil {
 		panic(err)
 	}
 
-	pagination.SetTotalCount(len(svcList))
+	// get all services
+	serviceListOpt := dockerTypes.ServiceListOptions{}
+	svcList, err := cluster.Client.ServiceList(ctx, serviceListOpt)
+	if err != nil {
+		panic(err)
+	}
+
+	// get all tasks
+	taskListOpt := dockerTypes.TaskListOptions{}
+	taskList, err := cluster.Client.TaskList(ctx, taskListOpt)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceStatus := GetServicesStatus(svcList, nodeList, taskList)
+
+	result := []*types.Service{}
+	for _, svc := range svcList {
+		newService := types.Service{}
+		newService.Service = svc
+		newService.Status = serviceStatus[svc.ID]
+		result = append(result, &newService)
+	}
+
+	pagination.SetTotalCount(len(result))
 	apiResult := app.ApiPagiationResult{
 		Pagination: pagination,
-		Data:       svcList,
+		Data:       result,
 	}
 
 	c.JSON(200, apiResult)

@@ -5,35 +5,44 @@ import (
 	"github.com/jasonsoft/abb/types"
 )
 
-func newPortInfo(source swarm.PortConfig) *types.PortInfo {
-	port := &types.PortInfo{
-		Mode:      source.PublishMode,
-		Target:    source.TargetPort,
-		Published: source.PublishedPort,
-		Protocol:  source.Protocol,
+// GetServicesStatus returns a map of mode and replicas
+func GetServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) map[string]types.ServiceStatus {
+	running := map[string]int{}
+	tasksNoShutdown := map[string]int{}
+
+	activeNodes := make(map[string]struct{})
+	for _, n := range nodes {
+		if n.Status.State != swarm.NodeStateDown {
+			activeNodes[n.ID] = struct{}{}
+		}
 	}
 
-	return port
-}
+	for _, task := range tasks {
+		if task.DesiredState != swarm.TaskStateShutdown {
+			tasksNoShutdown[task.ServiceID]++
+		}
 
-func convertToService(source *swarm.Service) *types.Service {
-
-	ports := []*types.PortInfo{}
-	for _, val := range source.Endpoint.Ports {
-		port := newPortInfo(val)
-		ports = append(ports, port)
+		if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == swarm.TaskStateRunning {
+			running[task.ServiceID]++
+		}
 	}
 
-	result := types.Service{
-		ID:    source.ID,
-		Name:  source.Spec.Name,
-		Image: source.Spec.TaskTemplate.ContainerSpec.Image,
-		Ports: ports,
+	info := map[string]types.ServiceStatus{}
+	for _, service := range services {
+		info[service.ID] = types.ServiceStatus{}
+		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+			info[service.ID] = types.ServiceStatus{
+				Mode:              "replicated",
+				AvailableReplicas: running[service.ID],
+				Replicas:          (int)(*service.Spec.Mode.Replicated.Replicas),
+			}
+		} else if service.Spec.Mode.Global != nil {
+			info[service.ID] = types.ServiceStatus{
+				Mode:              "global",
+				AvailableReplicas: running[service.ID],
+				Replicas:          tasksNoShutdown[service.ID],
+			}
+		}
 	}
-	return &result
-}
-
-func convertToDockerService(source *types.Service) *swarm.Service {
-	result := swarm.Service{}
-	return &result
+	return info
 }
