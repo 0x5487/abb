@@ -27,10 +27,11 @@ func NewAbbRouter() *napnap.Router {
 	router.Get("/v1/clusters/:cluster_name/networks", networkListEndpoint)
 
 	// service
-	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
+	router.Post("/v1/clusters/:cluster_name/services/:service_id/scale/:scale_num", serviceScaleEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/restart", serviceRestartEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/force-update", serviceForceUpdateEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/rollback", serviceRollbackEndpoint)
+	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services", serviceListEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services", serviceCreateEndpoint)
 	router.Delete("/v1/clusters/:cluster_name/services/:service_id", serviceDeleteEndpoint)
@@ -207,6 +208,54 @@ func serviceForceUpdateEndpoint(c *napnap.Context) {
 	newSpec.TaskTemplate.ForceUpdate = uint64(1)
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
 	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
+	if err != nil {
+		log.Panicf("abb: update service fail: %s", err.Error())
+	}
+
+	c.SetStatus(200)
+}
+
+func serviceScaleEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceID := c.Param("service_id")
+	if len(serviceID) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
+	}
+
+	scaleNum, err := c.ParamInt("scale_num")
+	if err != nil {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "scale_num parameter was invalid"})
+	}
+
+	// get service
+	getServiceOpt := ServiceGetOptions{
+		ServiceID: serviceID,
+	}
+	svc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	if err != nil {
+		panic(err)
+	}
+
+	if svc.Spec.Mode.Replicated == nil {
+		panic(app.AppError{ErrorCode: "invalid_action", Message: "scale can only be used with replicated mode"})
+	}
+
+	num := uint64(scaleNum)
+	svc.Spec.Mode.Replicated.Replicas = &num
+
+	updateOpt := dockerTypes.ServiceUpdateOptions{}
+	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: update service fail: %s", err.Error())
 	}
