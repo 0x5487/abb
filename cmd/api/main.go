@@ -2,18 +2,28 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
-	"gitlab.paradise-soft.com.tw/channels/cm/cm"
-
-	"github.com/jasonsoft/abb"
+	"github.com/jasonsoft/abb/abb"
 	"github.com/jasonsoft/log"
 	"github.com/jasonsoft/napnap"
 )
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			// unknown error
+			err, ok := r.(error)
+			if !ok {
+				err = fmt.Errorf("unknown error: %v", err)
+			}
+			log.Errorf("unknown error: %v", err)
+		}
+	}()
+
 	// set up the log
 	log.SetAppID("abb") // unique id for the app
 
@@ -22,10 +32,11 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt, os.Kill)
 	nap := napnap.New()
 	nap.Use(napnap.NewHealth())
-	nap.Use(abb.NewServiceRouter())
+	nap.Use(abb.NewErrorHandlingMiddleware())
+	nap.Use(abb.NewAbbRouter())
 
-	httpEngine := napnap.NewHttpEngine(cm.Config().Vendor.Bind)
-	log.Info("vendors starting")
+	httpEngine := napnap.NewHttpEngine(":10214")
+	log.Info("abb api starting")
 	go func() {
 		// service connections
 		err := nap.Run(httpEngine)
