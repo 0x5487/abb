@@ -1,0 +1,251 @@
+{
+	"variables": [],
+	"info": {
+		"name": "ABB",
+		"_postman_id": "ef66c716-871d-0b1e-eb41-c460ec7ade77",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "networks",
+			"description": "",
+			"item": [
+				{
+					"name": "network-list",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/networks",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "nodes",
+			"description": "",
+			"item": [
+				{
+					"name": "node-list",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/nodes",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "node-get",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/nodes/unqpq1cn1x3p1imkk2vaguddq",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "node-update",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/nodes/unqpq1cn1x3p1imkk2vaguddq",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n        \"Labels\": {\n            \"app\": \"cmap\"\n        },\n        \"Role\": \"manager\",\n        \"Availability\": \"active\"\n}"
+						},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "registry",
+			"description": "",
+			"item": [
+				{
+					"name": "repo-list",
+					"request": {
+						"url": "https://{{registry_host}}/v2/_catalog",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "tag-list",
+					"request": {
+						"url": "https://{{registry_host}}/v2/cmapi/tags/list",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "manifests",
+					"request": {
+						"url": "https://{{registry_host}}/v2/cmapi/manifests/latest",
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/vnd.docker.distribution.manifest.v2+json",
+								"description": ""
+							}
+						],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "delete-image",
+					"request": {
+						"url": "https://{{registry_host}}/v2/cmapi/manifests/sha256:4f625ef95bc8c3f1c9d836a59951c7a2b6bc12ff1e3605b56511c452cc7d02d3",
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/vnd.docker.container.image.v1+json",
+								"description": "",
+								"disabled": true
+							}
+						],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "services",
+			"description": "",
+			"item": [
+				{
+					"name": "service-list",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-delete",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/960bhhfjp1z4nl86tvkft460a",
+						"method": "DELETE",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-create",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n                \"Name\": \"cm_cmapi\",\n                \"Labels\": {\n                    \"com.docker.stack.namespace\": \"cm\"\n                },\n                \"TaskTemplate\": {\n                    \"ContainerSpec\": {\n                        \"Image\": \"reg.paradise-soft.com.tw:5000/cmapi:latest\",\n                        \"Labels\": {\n                            \"com.docker.stack.namespace\": \"cm\"\n                        },\n                        \"Mounts\": [\n                            {\n                                \"Type\": \"bind\",\n                                \"Source\": \"/srv/docker/cmapi/app.yml\",\n                                \"Target\": \"/xunya/cmapi/app.yml\"\n                            },\n                            {\n                                \"Type\": \"bind\",\n                                \"Source\": \"/srv/docker/cmapi/channel.yml\",\n                                \"Target\": \"/xunya/cmapi/channel.yml\"\n                            }\n                        ]\n                    },\n                    \"RestartPolicy\": {\n                        \"Condition\": \"any\",\n                        \"Delay\": 5000000000,\n                        \"MaxAttempts\": 5\n                    },\n                    \"Placement\": {\n                        \"Constraints\": [\n                            \"node.labels.app == cmap\"\n                        ]\n                    },\n                    \"Networks\": [\n                        {\n                            \"Target\": \"yys7vf7q7j003r4eoaijp0smn\",\n                            \"Aliases\": [\n                                \"cmapi\"\n                            ]\n                        }\n                    ],\n                    \"ForceUpdate\": 0\n                },\n                \"Mode\": {\n                    \"Replicated\": {\n                        \"Replicas\": 1\n                    }\n                },\n                \"UpdateConfig\": {\n                    \"Parallelism\": 1,\n                    \"Delay\": 10000000000,\n                    \"FailureAction\": \"pause\",\n                    \"MaxFailureRatio\": 0,\n                    \"Order\": \"stop-first\"\n                },\n                \"EndpointSpec\": {\n                    \"Mode\": \"vip\",\n                    \"Ports\": [\n                        {\n                            \"Protocol\": \"tcp\",\n                            \"TargetPort\": 80,\n                            \"PublishedPort\": 10020,\n                            \"PublishMode\": \"host\"\n                        }\n                    ]\n                }\n            }"
+						},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-restart",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/1kz8ju50okx7dz77j2g2ct9ly/restart",
+						"method": "POST",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-get",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/cm_cmapi",
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-force-update",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/cm_cmreceiver/force-update",
+						"method": "POST",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-rollback",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/cm_cmapi/rollback",
+						"method": "POST",
+						"header": [],
+						"body": {},
+						"description": ""
+					},
+					"response": []
+				},
+				{
+					"name": "service-scale",
+					"request": {
+						"url": "http://{{abb_host}}/v1/clusters/default/services/cm_cmapi/scale/1",
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": ""
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"description": ""
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

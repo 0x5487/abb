@@ -1,0 +1,36 @@
+version: '3.3'
+services:
+  api:
+    image: jasonsoft/abb-api:latest
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - target: 10214
+        published: 10214
+        protocol: tcp
+        mode: ingress
+    networks:
+      - abb
+    restart: always
+    logging:
+      options:
+        max-size: 50m
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 10
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+networks:
+  abb:
+    driver: overlay
