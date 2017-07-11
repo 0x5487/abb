@@ -28,7 +28,7 @@ func NewAbbRouter() *napnap.Router {
 
 	// service
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/scale/:scale_num", serviceScaleEndpoint)
-	router.Post("/v1/clusters/:cluster_name/services/:service_id/restart", serviceRestartEndpoint)
+	router.Post("/v1/clusters/:cluster_name/services/:service_id/redeploy", serviceRedeployEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/force-update", serviceForceUpdateEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/rollback", serviceRollbackEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
@@ -330,7 +330,7 @@ func serviceGetEndpoint(c *napnap.Context) {
 	c.JSON(200, svc)
 }
 
-func serviceRestartEndpoint(c *napnap.Context) {
+func serviceRedeployEndpoint(c *napnap.Context) {
 	ctx := c.StdContext()
 
 	clusterName := c.Param("cluster_name")

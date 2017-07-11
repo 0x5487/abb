@@ -1,5 +1,5 @@
 FROM golang:1.8.3
-ADD . /go/src/github.com/jasonsoft/abb/
+COPY . /go/src/github.com/jasonsoft/abb/
 WORKDIR /go/src/github.com/jasonsoft/abb/cmd/api/
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build
 
