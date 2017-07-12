@@ -1,0 +1,9 @@
+database:
+    address: 
+    username: 
+    password: 
+    dbname: 
+logs:
+    - name: clog 
+      type: console
+      min_level: debug

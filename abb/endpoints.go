@@ -40,7 +40,21 @@ func NewAbbRouter() *napnap.Router {
 }
 
 func clusterListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
 
+	clusters, err := _clusterManager.ClusterList(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	pagination.SetTotalCount(len(clusters))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       clusters,
+	}
+
+	c.JSON(200, apiResult)
 }
 
 func networkListEndpoint(c *napnap.Context) {
@@ -57,8 +71,15 @@ func networkListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	opt := dockerTypes.NetworkListOptions{}
-	networkList, err := cluster.Client.NetworkList(ctx, opt)
+	networkList, err := dockerClient.NetworkList(ctx, opt)
 	if err != nil {
 		panic(err)
 	}
@@ -85,12 +106,19 @@ func nodeGetEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	nodeID := c.Param("node_id")
 	if len(nodeID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "node_id parameter was invalid"})
 	}
 
-	node, _, err := cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	node, _, err := dockerClient.NodeInspectWithRaw(ctx, nodeID)
 	if err != nil {
 		panic(err)
 	}
@@ -111,6 +139,13 @@ func nodeUpdateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	nodeID := c.Param("node_id")
 	if len(nodeID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "node_id parameter was invalid"})
@@ -122,18 +157,18 @@ func nodeUpdateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
-	node, _, err := cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	node, _, err := dockerClient.NodeInspectWithRaw(ctx, nodeID)
 	if err != nil {
 		panic(err)
 	}
 
-	err = cluster.Client.NodeUpdate(ctx, nodeID, node.Version, nodeSpec)
+	err = dockerClient.NodeUpdate(ctx, nodeID, node.Version, nodeSpec)
 	if err != nil {
 		panic(err)
 	}
 
 	// refresh
-	node, _, err = cluster.Client.NodeInspectWithRaw(ctx, nodeID)
+	node, _, err = dockerClient.NodeInspectWithRaw(ctx, nodeID)
 	if err != nil {
 		panic(err)
 	}
@@ -155,8 +190,15 @@ func nodeListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	opt := dockerTypes.NodeListOptions{}
-	nodeList, err := cluster.Client.NodeList(ctx, opt)
+	nodeList, err := dockerClient.NodeList(ctx, opt)
 	if err != nil {
 		panic(err)
 	}
@@ -183,16 +225,23 @@ func serviceForceUpdateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
 	}
 
 	// get old spec
-	getServiceOpt := ServiceGetOptions{
+	getServiceOpt := types.ServiceGetOptions{
 		ServiceID: serviceID,
 	}
-	oldSvc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	oldSvc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -207,7 +256,7 @@ func serviceForceUpdateEndpoint(c *napnap.Context) {
 
 	newSpec.TaskTemplate.ForceUpdate = uint64(1)
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
-	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
+	_, err = dockerClient.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: update service fail: %s", err.Error())
 	}
@@ -228,6 +277,13 @@ func serviceScaleEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
@@ -239,10 +295,10 @@ func serviceScaleEndpoint(c *napnap.Context) {
 	}
 
 	// get service
-	getServiceOpt := ServiceGetOptions{
+	getServiceOpt := types.ServiceGetOptions{
 		ServiceID: serviceID,
 	}
-	svc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	svc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -255,7 +311,7 @@ func serviceScaleEndpoint(c *napnap.Context) {
 	svc.Spec.Mode.Replicated.Replicas = &num
 
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
-	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
+	_, err = dockerClient.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: update service fail: %s", err.Error())
 	}
@@ -276,16 +332,23 @@ func serviceRollbackEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
 	}
 
 	// get service and rollback
-	getServiceOpt := ServiceGetOptions{
+	getServiceOpt := types.ServiceGetOptions{
 		ServiceID: serviceID,
 	}
-	svc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	svc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -293,7 +356,7 @@ func serviceRollbackEndpoint(c *napnap.Context) {
 	updateOpt := dockerTypes.ServiceUpdateOptions{
 		Rollback: "previous",
 	}
-	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
+	_, err = dockerClient.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: rollback service fail: %s", err.Error())
 	}
@@ -314,20 +377,50 @@ func serviceGetEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
 	}
 
-	getServiceOpt := ServiceGetOptions{
+	getServiceOpt := types.ServiceGetOptions{
 		ServiceID: serviceID,
 	}
-	svc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	svc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
+	if err != nil {
+		panic(err)
+	}
+	svcList := []swarm.Service{}
+	svcList = append(svcList, *svc)
+
+	// get all nodes
+	nodeListOpt := dockerTypes.NodeListOptions{}
+	nodeList, err := dockerClient.NodeList(ctx, nodeListOpt)
 	if err != nil {
 		panic(err)
 	}
 
-	c.JSON(200, svc)
+	// get all tasks
+	taskListOpt := dockerTypes.TaskListOptions{}
+	taskList, err := dockerClient.TaskList(ctx, taskListOpt)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceStatus := getServicesStatus(svcList, nodeList, taskList)
+
+	for _, svc := range svcList {
+		newService := types.Service{}
+		newService.Service = svc
+		newService.Status = serviceStatus[svc.ID]
+		c.JSON(200, newService)
+	}
 }
 
 func serviceRedeployEndpoint(c *napnap.Context) {
@@ -343,16 +436,23 @@ func serviceRedeployEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
 	}
 
 	// get old spec
-	getServiceOpt := ServiceGetOptions{
+	getServiceOpt := types.ServiceGetOptions{
 		ServiceID: serviceID,
 	}
-	oldSvc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	oldSvc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -365,13 +465,13 @@ func serviceRedeployEndpoint(c *napnap.Context) {
 	}
 	newSpec.Mode.Replicated = &replicated
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
-	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
+	_, err = dockerClient.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: update service fail: %s", err.Error())
 	}
 
 	// get new service and rollback
-	newSvc, err := cluster.ServiceGet(ctx, getServiceOpt)
+	newSvc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -379,7 +479,7 @@ func serviceRedeployEndpoint(c *napnap.Context) {
 	updateOpt = dockerTypes.ServiceUpdateOptions{
 		Rollback: "previous",
 	}
-	_, err = cluster.Client.ServiceUpdate(ctx, serviceID, newSvc.Version, oldSvc.Spec, updateOpt)
+	_, err = dockerClient.ServiceUpdate(ctx, serviceID, newSvc.Version, oldSvc.Spec, updateOpt)
 	if err != nil {
 		log.Panicf("abb: rollback service fail: %s", err.Error())
 	}
@@ -400,12 +500,19 @@ func serviceDeleteEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
 	}
 
-	err = cluster.Client.ServiceRemove(ctx, serviceID)
+	err = dockerClient.ServiceRemove(ctx, serviceID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			notFoundMsg := fmt.Sprintf("%s was not found", serviceID)
@@ -430,11 +537,18 @@ func serviceCreateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	var serviceSpec swarm.ServiceSpec
 	c.BindJSON(&serviceSpec)
 
 	createOptions := dockerTypes.ServiceCreateOptions{}
-	svcResp, err := cluster.Client.ServiceCreate(ctx, serviceSpec, createOptions)
+	svcResp, err := dockerClient.ServiceCreate(ctx, serviceSpec, createOptions)
 	if err != nil {
 		if strings.Contains(err.Error(), "name conflicts") {
 			panic(app.AppError{ErrorCode: "service_exists", Message: "name conflicts with an existing service"})
@@ -443,7 +557,7 @@ func serviceCreateEndpoint(c *napnap.Context) {
 	}
 
 	serviceInspectWithRawOpt := dockerTypes.ServiceInspectOptions{}
-	result, _, err := cluster.Client.ServiceInspectWithRaw(ctx, svcResp.ID, serviceInspectWithRawOpt)
+	result, _, err := dockerClient.ServiceInspectWithRaw(ctx, svcResp.ID, serviceInspectWithRawOpt)
 	if err != nil {
 		log.Panicf("abb: get service err: %s", err.Error())
 	}
@@ -466,28 +580,35 @@ func serviceListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	serviceManager, err := NewServiceManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerClient := serviceManager.DockerClient()
+
 	// get all nodes
 	nodeListOpt := dockerTypes.NodeListOptions{}
-	nodeList, err := cluster.Client.NodeList(ctx, nodeListOpt)
+	nodeList, err := dockerClient.NodeList(ctx, nodeListOpt)
 	if err != nil {
 		panic(err)
 	}
 
 	// get all services
 	serviceListOpt := dockerTypes.ServiceListOptions{}
-	svcList, err := cluster.Client.ServiceList(ctx, serviceListOpt)
+	svcList, err := dockerClient.ServiceList(ctx, serviceListOpt)
 	if err != nil {
 		panic(err)
 	}
 
 	// get all tasks
 	taskListOpt := dockerTypes.TaskListOptions{}
-	taskList, err := cluster.Client.TaskList(ctx, taskListOpt)
+	taskList, err := dockerClient.TaskList(ctx, taskListOpt)
 	if err != nil {
 		panic(err)
 	}
 
-	serviceStatus := GetServicesStatus(svcList, nodeList, taskList)
+	serviceStatus := getServicesStatus(svcList, nodeList, taskList)
 
 	result := []*types.Service{}
 	for _, svc := range svcList {

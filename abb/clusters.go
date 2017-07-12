@@ -2,54 +2,112 @@ package abb
 
 import (
 	"context"
-	"time"
+	"database/sql"
+	"database/sql/driver"
 
-	"fmt"
-
-	dockerTypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
-	"github.com/jasonsoft/abb/app"
-	"github.com/jasonsoft/log"
+	"github.com/jasonsoft/abb/types"
+	xlog "github.com/jasonsoft/log"
+	"github.com/jmoiron/sqlx"
 )
 
+// ************************
+// Business
+// ************************
+
 type ClusterManager struct {
+	repo types.ClusterRepository
 }
 
-func NewClusterManager() *ClusterManager {
-	return nil
+func NewClusterManager(repo types.ClusterRepository) types.ClusterService {
+	return &ClusterManager{
+		repo: repo,
+	}
 }
 
-func (manager *ClusterManager) ClusterList(ctx context.Context) ([]*Cluster, error) {
-	return nil, nil
-}
-
-func (manager *ClusterManager) ClusterByName(ctx context.Context, name string) (*Cluster, error) {
-	cluster, err := NewCluster("tcp://10.200.252.123:2376")
+func (manager *ClusterManager) ClusterList(ctx context.Context) ([]*types.Cluster, error) {
+	clusters, err := manager.repo.ClusterList(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	return clusters, nil
+}
+
+func (manager *ClusterManager) ClusterByName(ctx context.Context, name string) (*types.Cluster, error) {
+	cluster, err := manager.repo.ClusterByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
 	return cluster, nil
 }
 
-type Cluster struct {
-	Client *client.Client
+// ************************
+// Database
+// ************************
 
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type ClusterDatabase struct {
+	db *sqlx.DB
 }
 
-func NewCluster(host string) (*Cluster, error) {
-	client, err := client.NewClient(host, "v1.30", nil, nil)
+func NewClusterDatabase(db *sqlx.DB) types.ClusterRepository {
+	return &ClusterDatabase{
+		db: db,
+	}
+}
+
+const clusterListSQL = "SELECT `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters"
+
+func (c *ClusterDatabase) ClusterList(ctx context.Context) ([]*types.Cluster, error) {
+	log := xlog.FromContext(ctx)
+
+	var clusters []*types.Cluster
+	err := c.db.Select(&clusters, clusterListSQL)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		log.Errorf("abb: get all clusters fail: %v", err)
 		return nil, err
 	}
 
-	return &Cluster{
-		Client: client,
-	}, nil
+	return clusters, nil
+}
+
+const clusterByNameSQL = "SELECT `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters where (`name`= :name);"
+
+func (c *ClusterDatabase) ClusterByName(ctx context.Context, name string) (*types.Cluster, error) {
+	log := xlog.FromContext(ctx)
+
+	clusterByNameSQLStmt, err := c.db.PrepareNamed(clusterByNameSQL)
+	if err != nil {
+		log.Errorf("abb: prepare sql fail: %v", err)
+		return nil, err
+	}
+	defer clusterByNameSQLStmt.Close()
+
+	m := map[string]interface{}{
+		"name": name,
+	}
+
+	cluster := types.Cluster{}
+
+	for i := 0; i < 10; i++ {
+		err = clusterByNameSQLStmt.Get(&cluster, m)
+		if err == driver.ErrBadConn {
+			continue
+		}
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			log.Errorf("abb: get request fail: %v", err)
+			return nil, err
+		}
+		break
+	}
+
+	return &cluster, nil
 }
 
 // type GetServiceListOptions struct {
@@ -72,26 +130,6 @@ func NewCluster(host string) (*Cluster, error) {
 
 // 	return services, nil
 // }
-
-type ServiceGetOptions struct {
-	ServiceID string
-}
-
-func (c *Cluster) ServiceGet(ctx context.Context, opt ServiceGetOptions) (*swarm.Service, error) {
-	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}
-	svc, _, err := c.Client.ServiceInspectWithRaw(ctx, opt.ServiceID, serviceInspectOptions)
-	if err != nil {
-		if client.IsErrServiceNotFound(err) {
-			return nil, app.AppError{
-				ErrorCode: "not_found",
-				Message:   fmt.Sprintf("service:'%s' was not found", opt.ServiceID),
-			}
-		}
-		log.Errorf("abb: get service error: %v", err)
-		return nil, err
-	}
-	return &svc, nil
-}
 
 // func (c *Cluster) ServiceCreate(ctx context.Context, svc *types.Service) (*types.Service, error) {
 // 	dockerSvc := convertToDockerService(svc)

@@ -1,6 +1,6 @@
 package config
 
-// GetConfig returns configuration struct
-func GetConfig() *Configuration {
+// Config returns configuration struct
+func Config() *Configuration {
 	return _config
 }

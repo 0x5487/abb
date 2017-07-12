@@ -1,6 +1,9 @@
 package app
 
-import "github.com/jasonsoft/napnap"
+import (
+	"github.com/jasonsoft/napnap"
+	"github.com/jmoiron/sqlx"
+)
 
 func GetPaginationFromContext(c *napnap.Context) Pagination {
 	page, err := c.QueryInt("page")
@@ -17,4 +20,8 @@ func GetPaginationFromContext(c *napnap.Context) Pagination {
 		PerPage: perPage,
 	}
 	return pagination
+}
+
+func DBX() *sqlx.DB {
+	return _db
 }

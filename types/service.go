@@ -1,6 +1,20 @@
 package types
 
-import "github.com/docker/docker/api/types/swarm"
+import (
+	"context"
+
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
+)
+
+type ServiceGetOptions struct {
+	ServiceID string
+}
+
+type ServiceService interface {
+	DockerClient() *client.Client
+	ServiceGet(ctx context.Context, opt ServiceGetOptions) (*swarm.Service, error)
+}
 
 type Service struct {
 	swarm.Service

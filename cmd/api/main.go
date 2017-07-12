@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jasonsoft/abb/abb"
 	"github.com/jasonsoft/log"
 	"github.com/jasonsoft/napnap"
