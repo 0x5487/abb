@@ -156,6 +156,11 @@
 			"Rev": "aabc10ec26b754e797f9028f4589c5b7bd90dc20"
 		},
 		{
+			"ImportPath": "github.com/go-sql-driver/mysql",
+			"Comment": "v1.3-27-gbf7f34f",
+			"Rev": "bf7f34fef176d890dfcc6e94319ac747291bc09a"
+		},
+		{
 			"ImportPath": "github.com/jasonsoft/log",
 			"Rev": "94c9cc12221151c5830db19cc20b020305fcb977"
 		},
@@ -166,6 +171,16 @@
 		{
 			"ImportPath": "github.com/jasonsoft/napnap",
 			"Rev": "9be0e54d96ac2ebe34f749d3a891767a469bb4e9"
+		},
+		{
+			"ImportPath": "github.com/jmoiron/sqlx",
+			"Comment": "sqlx-v1.1-105-gf980a91",
+			"Rev": "f980a91bdc37abef88269b8f122d7de6352102f5"
+		},
+		{
+			"ImportPath": "github.com/jmoiron/sqlx/reflectx",
+			"Comment": "sqlx-v1.1-105-gf980a91",
+			"Rev": "f980a91bdc37abef88269b8f122d7de6352102f5"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/go-digest",
@@ -206,6 +221,10 @@
 		{
 			"ImportPath": "golang.org/x/sys/windows",
 			"Rev": "a646d33e2ee3172a661fc09bca23bb4889a41bc8"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "4c78c975fe7c825c6d1466c42be594d1d6f3aba6"
 		}
 	]
 }
