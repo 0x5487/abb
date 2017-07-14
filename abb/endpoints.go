@@ -77,6 +77,7 @@ func networkListEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	opt := dockerTypes.NetworkListOptions{}
 	networkList, err := dockerClient.NetworkList(ctx, opt)
@@ -112,6 +113,7 @@ func nodeGetEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	nodeID := c.Param("node_id")
 	if len(nodeID) <= 0 {
@@ -145,6 +147,7 @@ func nodeUpdateEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	nodeID := c.Param("node_id")
 	if len(nodeID) <= 0 {
@@ -196,6 +199,7 @@ func nodeListEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	opt := dockerTypes.NodeListOptions{}
 	nodeList, err := dockerClient.NodeList(ctx, opt)
@@ -231,6 +235,7 @@ func serviceForceUpdateEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
@@ -338,6 +343,7 @@ func serviceRollbackEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
@@ -383,6 +389,7 @@ func serviceGetEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
@@ -442,6 +449,7 @@ func serviceRedeployEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
@@ -506,6 +514,7 @@ func serviceDeleteEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	serviceID := c.Param("service_id")
 	if len(serviceID) <= 0 {
@@ -543,6 +552,7 @@ func serviceCreateEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	var serviceSpec swarm.ServiceSpec
 	c.BindJSON(&serviceSpec)
@@ -586,6 +596,7 @@ func serviceListEndpoint(c *napnap.Context) {
 	}
 
 	dockerClient := serviceManager.DockerClient()
+	defer dockerClient.Close()
 
 	// get all nodes
 	nodeListOpt := dockerTypes.NodeListOptions{}
