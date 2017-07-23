@@ -31,12 +31,14 @@ func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swa
 		info[service.ID] = types.ServiceStatus{}
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
 			info[service.ID] = types.ServiceStatus{
+				ServiceName:       service.Spec.Name,
 				Mode:              "replicated",
 				AvailableReplicas: running[service.ID],
 				Replicas:          (int)(*service.Spec.Mode.Replicated.Replicas),
 			}
 		} else if service.Spec.Mode.Global != nil {
 			info[service.ID] = types.ServiceStatus{
+				ServiceName:       service.Spec.Name,
 				Mode:              "global",
 				AvailableReplicas: running[service.ID],
 				Replicas:          tasksNoShutdown[service.ID],

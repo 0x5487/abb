@@ -48,10 +48,11 @@ func init() {
 		// config does not exist
 		_config = &Configuration{
 			Database: Database{
-				Username: os.Getenv("ABB_DB_USERNAME"),
-				Password: os.Getenv("ABB_DB_PASSWORD"),
-				Address:  os.Getenv("ABB_DB_ADDRESS"),
-				DBName:   os.Getenv("ABB_DB_DBNAME"),
+				ConnectionString: os.Getenv("ABB_DB_CONNECTION_STRING"),
+				Username:         os.Getenv("ABB_DB_USERNAME"),
+				Password:         os.Getenv("ABB_DB_PASSWORD"),
+				Address:          os.Getenv("ABB_DB_ADDRESS"),
+				DBName:           os.Getenv("ABB_DB_DBNAME"),
 			},
 		}
 	}

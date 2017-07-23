@@ -1,10 +1,11 @@
 package config
 
 type Database struct {
-	Username string
-	Password string
-	Address  string
-	DBName   string
+	ConnectionString string `yaml:"connection_string"`
+	Username         string
+	Password         string
+	Address          string
+	DBName           string
 }
 
 type Configuration struct {
