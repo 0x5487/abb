@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 )
 
@@ -16,6 +17,7 @@ type ServiceService interface {
 	DockerClient() *client.Client
 	ServiceCreate(ctx context.Context, target *Service) error
 	ServiceGetByID(ctx context.Context, id string) (*Service, error)
+	ServiceRawByID(ctx context.Context, id string) (*swarm.Service, error)
 	ServiceGetByName(ctx context.Context, name string) (*Service, error)
 	ServiceDelete(ctx context.Context, id string) error
 	ServiceUpdate(ctx context.Context, target *Service) error

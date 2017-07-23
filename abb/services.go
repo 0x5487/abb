@@ -175,6 +175,37 @@ func (m *ServiceManager) ServiceGetByID(ctx context.Context, id string) (*types.
 	return service, nil
 }
 
+func (m *ServiceManager) ServiceRawByID(ctx context.Context, id string) (*swarm.Service, error) {
+	logger := log.FromContext(ctx)
+	service, err := m.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if service == nil {
+		service, err = m.repo.FindByName(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if service == nil {
+		return nil, nil
+	}
+
+	// get old spec
+	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}
+	dockerSvc, _, err := m.client.ServiceInspectWithRaw(ctx, service.Name, serviceInspectOptions)
+	if err != nil {
+		if client.IsErrServiceNotFound(err) {
+			return nil, app.AppError{ErrorCode: "not_found", Message: "service raw was not found"}
+		}
+		logger.Errorf("abb: get service error: %v", err)
+		return nil, err
+	}
+
+	return &dockerSvc, nil
+}
+
 func (m *ServiceManager) ServiceGetByName(ctx context.Context, name string) (*types.Service, error) {
 	return m.repo.FindByName(ctx, name)
 }
@@ -277,6 +308,11 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 	service, err := m.ServiceGetByID(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	// ensure the service is stop
+	if service.Status.AvailableReplicas > 0 {
+		return app.AppError{ErrorCode: "service_must_stop", Message: "It seems the service is still running, you need to stop the service before delete it"}
 	}
 
 	dockerClient := m.DockerClient()
@@ -480,6 +516,9 @@ func (repo *ServiceMongo) Update(ctx context.Context, target *types.Service) err
 	colQuerier := bson.M{"_id": target.ID}
 	err := col.Update(colQuerier, target)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "E11000") {
+			return app.AppError{ErrorCode: "duplicate", Message: "the service id or name already exits"}
+		}
 		logger.Errorf("abb: service update error: %v", err)
 		return err
 	}

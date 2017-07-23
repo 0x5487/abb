@@ -25,11 +25,10 @@ func NewAbbRouter() *napnap.Router {
 	router.Get("/v1/clusters/:cluster_name/networks", networkListEndpoint)
 
 	// service
-	router.Post("/v1/clusters/:cluster_name/services/:service_id/scale/:scale_num", serviceScaleEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/redeploy", serviceRedeployEndpoint)
-	router.Post("/v1/clusters/:cluster_name/services/:service_id/force-update", serviceForceUpdateEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/rollback", serviceRollbackEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/stop", serviceStopEndpoint)
+	router.Get("/v1/clusters/:cluster_name/services/:service_id/raw", serviceRawEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
 	router.Put("/v1/clusters/:cluster_name/services/:service_id", serviceUpdateEndpoint)
 	router.Delete("/v1/clusters/:cluster_name/services/:service_id", serviceDeleteEndpoint)
@@ -237,114 +236,6 @@ func nodeListEndpoint(c *napnap.Context) {
 	c.JSON(200, apiResult)
 }
 
-func serviceForceUpdateEndpoint(c *napnap.Context) {
-	// ctx := c.StdContext()
-
-	// clusterName := c.Param("cluster_name")
-	// if len(clusterName) <= 0 {
-	// 	panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
-	// }
-
-	// cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// serviceManager, err := NewServiceManager(cluster, _serviceDAO)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// dockerClient := serviceManager.DockerClient()
-	// defer dockerClient.Close()
-
-	// serviceID := c.Param("service_id")
-	// if len(serviceID) <= 0 {
-	// 	panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
-	// }
-
-	// // get old spec
-	// getServiceOpt := types.ServiceGetOptions{
-	// 	ServiceID: serviceID,
-	// }
-	// oldSvc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// newSpec := oldSvc.Spec
-
-	// // create newSpec
-	// log.Infof("abb: force-update image: %s", newSpec.TaskTemplate.ContainerSpec.Image)
-	// imagePaths := strings.Split(newSpec.TaskTemplate.ContainerSpec.Image, "@")
-	// if len(imagePaths) > 0 {
-	// 	newSpec.TaskTemplate.ContainerSpec.Image = imagePaths[0]
-	// }
-
-	// newSpec.TaskTemplate.ForceUpdate = uint64(1)
-	// updateOpt := dockerTypes.ServiceUpdateOptions{}
-	// _, err = dockerClient.ServiceUpdate(ctx, serviceID, oldSvc.Version, newSpec, updateOpt)
-	// if err != nil {
-	// 	log.Panicf("abb: update service fail: %s", err.Error())
-	// }
-
-	// c.SetStatus(200)
-}
-
-func serviceScaleEndpoint(c *napnap.Context) {
-	// ctx := c.StdContext()
-
-	// clusterName := c.Param("cluster_name")
-	// if len(clusterName) <= 0 {
-	// 	panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
-	// }
-
-	// cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// serviceManager, err := NewServiceManager(cluster)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// dockerClient := serviceManager.DockerClient()
-
-	// serviceID := c.Param("service_id")
-	// if len(serviceID) <= 0 {
-	// 	panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
-	// }
-
-	// scaleNum, err := c.ParamInt("scale_num")
-	// if err != nil {
-	// 	panic(app.AppError{ErrorCode: "invalid_input", Message: "scale_num parameter was invalid"})
-	// }
-
-	// // get service
-	// getServiceOpt := types.ServiceGetOptions{
-	// 	ServiceID: serviceID,
-	// }
-	// svc, err := serviceManager.ServiceGet(ctx, getServiceOpt)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// if svc.Spec.Mode.Replicated == nil {
-	// 	panic(app.AppError{ErrorCode: "invalid_action", Message: "scale can only be used with replicated mode"})
-	// }
-
-	// num := uint64(scaleNum)
-	// svc.Spec.Mode.Replicated.Replicas = &num
-
-	// updateOpt := dockerTypes.ServiceUpdateOptions{}
-	// _, err = dockerClient.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, updateOpt)
-	// if err != nil {
-	// 	log.Panicf("abb: update service fail: %s", err.Error())
-	// }
-
-	// c.SetStatus(200)
-}
-
 func serviceRollbackEndpoint(c *napnap.Context) {
 	// ctx := c.StdContext()
 
@@ -429,6 +320,41 @@ func serviceStopEndpoint(c *napnap.Context) {
 	}
 
 	c.SetStatus(200)
+}
+
+func serviceRawEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceManager, err := NewServiceManager(cluster, _serviceRepo)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceID := c.Param("service_id")
+	if len(serviceID) == 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
+	}
+
+	svc, err := serviceManager.ServiceRawByID(ctx, serviceID)
+	if err != nil {
+		panic(err)
+	}
+
+	if svc == nil {
+		panic(app.AppError{ErrorCode: "not_found", Message: "service was not found"})
+	}
+
+	c.JSON(200, svc)
 }
 
 func serviceGetEndpoint(c *napnap.Context) {
@@ -542,7 +468,10 @@ func serviceDeleteEndpoint(c *napnap.Context) {
 		panic(app.AppError{ErrorCode: "not_found", Message: "service was not found"})
 	}
 
-	serviceManager.ServiceDelete(ctx, serviceID)
+	err = serviceManager.ServiceDelete(ctx, serviceID)
+	if err != nil {
+		panic(err)
+	}
 	c.SetStatus(204)
 }
 
