@@ -21,6 +21,7 @@ services:
       options:
         max-size: 50m
     environment:
+      - ABB_DB_CONNECTION_STRING=
       - ABB_DB_USERNAME=
       - ABB_DB_PASSWORD=
       - ABB_DB_ADDRESS=

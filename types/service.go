@@ -70,9 +70,10 @@ type PortInfo struct {
 }
 
 type VolumeInfo struct {
-	Type   string `json:"type" bson:"type"`
-	Source string `json:"source" bson:"source"`
-	Target string `json:"target" bson:"target"`
+	Type     string `json:"type" bson:"type"`
+	Source   string `json:"source" bson:"source"`
+	Target   string `json:"target" bson:"target"`
+	ReadOnly bool   `json:"read_only" bson:"read_only"`
 }
 
 type Placement struct {

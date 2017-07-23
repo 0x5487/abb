@@ -39,8 +39,12 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 
 	spec.Annotations.Name = target.Name
 	spec.TaskTemplate.ContainerSpec.Image = target.Spec.Image
+	spec.TaskTemplate.ContainerSpec.Env = target.Spec.Environments
 
-	if strings.EqualFold(target.Spec.Deploy.Mode, "replicated") {
+	switch strings.ToLower(target.Spec.Deploy.Mode) {
+	case "global":
+		spec.Mode.Global = &swarm.GlobalService{}
+	case "replicated":
 		spec.Mode.Replicated = &swarm.ReplicatedService{
 			Replicas: &target.Spec.Deploy.Replicas,
 		}
@@ -51,9 +55,10 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 		switch strings.ToLower(volume.Type) {
 		case "bind":
 			mount := mount.Mount{
-				Type:   mount.TypeBind,
-				Source: volume.Source,
-				Target: volume.Target,
+				Type:     mount.TypeBind,
+				Source:   volume.Source,
+				Target:   volume.Target,
+				ReadOnly: volume.ReadOnly,
 			}
 
 			spec.TaskTemplate.ContainerSpec.Mounts = append(spec.TaskTemplate.ContainerSpec.Mounts, mount)
