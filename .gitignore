@@ -1,3 +1,4 @@
 /.vscode
 *.exe
 /app.yml
+/docs/ABB.postman_collection.json
