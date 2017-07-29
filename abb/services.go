@@ -296,7 +296,7 @@ func (m *ServiceManager) Redeploy(ctx context.Context, id string) error {
 	}
 
 	// new spec with force update
-	dockerSvcSpec.TaskTemplate.ForceUpdate = uint64(1)
+	dockerSvcSpec.TaskTemplate.ForceUpdate = dockerOldSvc.Spec.TaskTemplate.ForceUpdate + 1
 	updateOpt := dockerTypes.ServiceUpdateOptions{}
 	_, err = m.client.ServiceUpdate(ctx, dockerOldSvc.ID, dockerOldSvc.Version, dockerSvcSpec, updateOpt)
 	if err != nil {
