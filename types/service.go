@@ -18,6 +18,7 @@ type ServiceService interface {
 	ServiceCreate(ctx context.Context, target *Service) error
 	ServiceGetByID(ctx context.Context, id string) (*Service, error)
 	ServiceRawByID(ctx context.Context, id string) (*swarm.Service, error)
+	ServiceLogsByID(ctx context.Context, id string) (string, error)
 	ServiceGetByName(ctx context.Context, name string) (*Service, error)
 	ServiceDelete(ctx context.Context, id string) error
 	ServiceUpdate(ctx context.Context, target *Service) error
@@ -95,4 +96,9 @@ type Deploy struct {
 }
 
 type ServiceListOptions struct {
+}
+
+
+type ServiceLogResult struct {
+	Logs string  `json:"logs"`
 }

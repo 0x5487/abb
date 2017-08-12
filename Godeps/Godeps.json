@@ -13,8 +13,8 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.11.5-12-g10f801e",
-			"Rev": "10f801ebc38b33738c9d17d50860f484a0988ff5"
+			"Comment": "v1.0.0-4-g59d0ca4",
+			"Rev": "59d0ca41e5faad81cac03f7a7d84ba80d9cc9673"
 		},
 		{
 			"ImportPath": "github.com/docker/distribution/digestset",
@@ -162,11 +162,11 @@
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/log",
-			"Rev": "94c9cc12221151c5830db19cc20b020305fcb977"
+			"Rev": "eae6bb53a3b8bcdc198541c1ed0e88230a1bc626"
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/log/handlers/console",
-			"Rev": "94c9cc12221151c5830db19cc20b020305fcb977"
+			"Rev": "eae6bb53a3b8bcdc198541c1ed0e88230a1bc626"
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/napnap",
@@ -209,15 +209,15 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "d1e1b351919c6738fdeb9893d5c998b161464f0c"
+			"Rev": "054b33e6527139ad5b1ec2f6232c3b175bd9a30c"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "d1e1b351919c6738fdeb9893d5c998b161464f0c"
+			"Rev": "054b33e6527139ad5b1ec2f6232c3b175bd9a30c"
 		},
 		{
 			"ImportPath": "golang.org/x/net/proxy",
-			"Rev": "d1e1b351919c6738fdeb9893d5c998b161464f0c"
+			"Rev": "054b33e6527139ad5b1ec2f6232c3b175bd9a30c"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

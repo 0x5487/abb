@@ -2,6 +2,7 @@ package abb
 
 import (
 	"context"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -209,6 +210,45 @@ func (m *ServiceManager) ServiceRawByID(ctx context.Context, id string) (*swarm.
 	}
 
 	return &dockerSvc, nil
+}
+
+func (m *ServiceManager) ServiceLogsByID(ctx context.Context, id string) (string, error) {
+	logger := log.FromContext(ctx)
+	service, err := m.repo.FindByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if service == nil {
+		service, err = m.repo.FindByName(ctx, id)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if service == nil {
+		return "", nil
+	}
+
+	// get service logs
+	logOpts := dockerTypes.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Since:      "0",
+		Timestamps: false,
+		Tail:       "500",
+		Details:    false,
+	}
+	resp, err := m.client.ServiceLogs(ctx, service.Name, logOpts)
+	if err != nil {
+		logger.Errorf("abb: get service logs fail: %v", err)
+		return "", err
+	}
+	body, err := ioutil.ReadAll(resp)
+	if err != nil {
+		logger.Errorf("abb: read service logs fail: %v", err)
+		return "", err
+	}
+	return string(body), nil
 }
 
 func (m *ServiceManager) ServiceGetByName(ctx context.Context, name string) (*types.Service, error) {

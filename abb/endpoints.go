@@ -29,6 +29,7 @@ func NewAbbRouter() *napnap.Router {
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/rollback", serviceRollbackEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services/:service_id/stop", serviceStopEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services/:service_id/raw", serviceRawEndpoint)
+	router.Get("/v1/clusters/:cluster_name/services/:service_id/logs", serviceLogsEndpoint)
 	router.Get("/v1/clusters/:cluster_name/services/:service_id", serviceGetEndpoint)
 	router.Put("/v1/clusters/:cluster_name/services/:service_id", serviceUpdateEndpoint)
 	router.Delete("/v1/clusters/:cluster_name/services/:service_id", serviceDeleteEndpoint)
@@ -355,6 +356,41 @@ func serviceRawEndpoint(c *napnap.Context) {
 	}
 
 	c.JSON(200, svc)
+}
+
+func serviceLogsEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceManager, err := NewServiceManager(cluster, _serviceRepo)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceID := c.Param("service_id")
+	if len(serviceID) == 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "service_id parameter was invalid"})
+	}
+
+	logs, err := serviceManager.ServiceLogsByID(ctx, serviceID)
+	if err != nil {
+		panic(err)
+	}
+
+	// result := types.ServiceLogResult{
+	// 	Logs: logs,
+	// }
+
+	c.String(200, logs)
 }
 
 func serviceGetEndpoint(c *napnap.Context) {
