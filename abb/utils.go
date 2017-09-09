@@ -5,7 +5,7 @@ import (
 	"github.com/jasonsoft/abb/types"
 )
 
-func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) map[string]types.ServiceStatus {
+func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) map[string]types.DeploymentStatus {
 	running := map[string]int{}
 	tasksNoShutdown := map[string]int{}
 
@@ -26,23 +26,32 @@ func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swa
 		}
 	}
 
-	info := map[string]types.ServiceStatus{}
+	info := map[string]types.DeploymentStatus{}
 	for _, service := range services {
-		info[service.ID] = types.ServiceStatus{}
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
-			info[service.ID] = types.ServiceStatus{
+			deploymentStatus := types.DeploymentStatus{
 				ServiceName:       service.Spec.Name,
+				Image:             service.Spec.TaskTemplate.ContainerSpec.Image,
 				Mode:              "replicated",
 				AvailableReplicas: running[service.ID],
 				Replicas:          (int)(*service.Spec.Mode.Replicated.Replicas),
 			}
+			if service.UpdateStatus != nil {
+				deploymentStatus.UpdateState = string(service.UpdateStatus.State)
+			}
+			info[service.ID] = deploymentStatus
 		} else if service.Spec.Mode.Global != nil {
-			info[service.ID] = types.ServiceStatus{
+			deploymentStatus := types.DeploymentStatus{
 				ServiceName:       service.Spec.Name,
+				Image:             service.Spec.TaskTemplate.ContainerSpec.Image,
 				Mode:              "global",
 				AvailableReplicas: running[service.ID],
 				Replicas:          tasksNoShutdown[service.ID],
 			}
+			if service.UpdateStatus != nil {
+				deploymentStatus.UpdateState = string(service.UpdateStatus.State)
+			}
+			info[service.ID] = deploymentStatus
 		}
 	}
 	return info

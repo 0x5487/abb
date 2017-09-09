@@ -46,21 +46,23 @@ type ServiceSpec struct {
 }
 
 type Service struct {
-	ID        string        `json:"id" db:"id" bson:"_id"`
-	ClusterID string        `json:"cluster_id" db:"cluster_id" bson:"cluster_id"`
-	Name      string        `json:"name" db:"name" bson:"name"`
-	Spec      ServiceSpec   `json:"spec" db:"-" bson:"spec"`
-	Status    ServiceStatus `json:"status" db:"-" bson:"-"`
-	CreatedAt time.Time     `json:"created_at" db:"created_at" bson:"created_at"`
-	UpdatedAt time.Time     `json:"updated_at" db:"updated_at" bson:"updated_at"`
+	ID               string           `json:"id" db:"id" bson:"_id"`
+	ClusterID        string           `json:"cluster_id" db:"cluster_id" bson:"cluster_id"`
+	Name             string           `json:"name" db:"name" bson:"name"`
+	Spec             ServiceSpec      `json:"spec" db:"-" bson:"spec"`
+	DeploymentStatus DeploymentStatus `json:"deployment_status" db:"-" bson:"-"`
+	CreatedAt        time.Time        `json:"created_at" db:"created_at" bson:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at" db:"updated_at" bson:"updated_at"`
 }
 
-// ServiceStatus stores the information about mode and replicas to be used by template
-type ServiceStatus struct {
+// DeploymentStatus stores the information about mode and replicas to be used by template
+type DeploymentStatus struct {
 	ServiceName       string `json:"-"`
+	Image             string `json:"image"`
 	Mode              string `json:"mode"`
 	AvailableReplicas int    `json:"available_replicas"`
 	Replicas          int    `json:"replicas"`
+	UpdateState       string `json:"update_state"`
 }
 
 type PortInfo struct {
@@ -98,7 +100,6 @@ type Deploy struct {
 type ServiceListOptions struct {
 }
 
-
 type ServiceLogResult struct {
-	Logs string  `json:"logs"`
+	Logs string `json:"logs"`
 }

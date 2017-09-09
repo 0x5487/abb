@@ -170,11 +170,11 @@ func (m *ServiceManager) ServiceGetByID(ctx context.Context, id string) (*types.
 		return nil, nil
 	}
 
-	dockerServiceStatus := m.servicesStatus(ctx)
+	dockerServiceStatus := m.deploymentStatusList(ctx)
 
 	for _, dockerStatus := range dockerServiceStatus {
 		if service.Name == dockerStatus.ServiceName {
-			service.Status = dockerStatus
+			service.DeploymentStatus = dockerStatus
 		}
 	}
 
@@ -255,7 +255,7 @@ func (m *ServiceManager) ServiceGetByName(ctx context.Context, name string) (*ty
 	return m.repo.FindByName(ctx, name)
 }
 
-func (m *ServiceManager) servicesStatus(ctx context.Context) map[string]types.ServiceStatus {
+func (m *ServiceManager) deploymentStatusList(ctx context.Context) map[string]types.DeploymentStatus {
 	// get all nodes
 	nodeListOpt := dockerTypes.NodeListOptions{}
 	nodeList, err := m.client.NodeList(ctx, nodeListOpt)
@@ -290,12 +290,12 @@ func (m *ServiceManager) List(ctx context.Context, opts types.ServiceListOptions
 		panic(err)
 	}
 
-	dockerServiceStatus := m.servicesStatus(ctx)
+	dockerServiceStatus := m.deploymentStatusList(ctx)
 
 	for _, svc := range svcList {
 		for _, dockerStatus := range dockerServiceStatus {
 			if svc.Name == dockerStatus.ServiceName {
-				svc.Status = dockerStatus
+				svc.DeploymentStatus = dockerStatus
 			}
 		}
 	}
@@ -356,7 +356,7 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 	}
 
 	// ensure the service is stop
-	if service.Status.AvailableReplicas > 0 {
+	if service.DeploymentStatus.AvailableReplicas > 0 {
 		return app.AppError{ErrorCode: "service_must_stop", Message: "It seems the service is still running, you need to stop the service before delete it"}
 	}
 
