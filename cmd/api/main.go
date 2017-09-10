@@ -33,6 +33,9 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt, os.Kill)
 	nap := napnap.New()
 	nap.Use(napnap.NewHealth())
+
+	corsOpts := napnap.Options{}
+	nap.Use(napnap.NewCors(corsOpts))
 	nap.Use(abb.NewErrorHandlingMiddleware())
 	nap.Use(abb.NewAbbRouter())
 
