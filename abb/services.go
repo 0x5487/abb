@@ -10,6 +10,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -249,6 +250,39 @@ func (m *ServiceManager) ServiceLogsByID(ctx context.Context, id string) (string
 		return "", err
 	}
 	return string(body), nil
+}
+
+func (m *ServiceManager) ServiceTaskListByID(ctx context.Context, id string) ([]swarm.Task, error) {
+	logger := log.FromContext(ctx)
+	service, err := m.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if service == nil {
+		service, err = m.repo.FindByName(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if service == nil {
+		return nil, nil
+	}
+
+	// get task per service
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("desired-state", "running")
+	filterArgs.Add("service", service.Name)
+
+	taskListOpt := dockerTypes.TaskListOptions{
+		Filters: filterArgs,
+	}
+	taskList, err := m.client.TaskList(ctx, taskListOpt)
+	if err != nil {
+		logger.Errorf("abb: list service task fail: %v", err)
+		return nil, err
+	}
+	return taskList, nil
 }
 
 func (m *ServiceManager) ServiceGetByName(ctx context.Context, name string) (*types.Service, error) {

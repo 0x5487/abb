@@ -36,7 +36,50 @@ func NewAbbRouter() *napnap.Router {
 	router.Get("/v1/clusters/:cluster_name/services", serviceListEndpoint)
 	router.Post("/v1/clusters/:cluster_name/services", serviceCreateEndpoint)
 
+	// task
+	router.Get("/v1/clusters/:cluster_name/tasks", taskListEndpoint)
+
 	return router
+}
+
+func taskListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	taskManager, err := newTaskManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+	defer taskManager.Close(ctx)
+
+	serviceID := c.Query("service_id")
+
+	opts := types.TaskListOption{
+		ServiceID: serviceID,
+	}
+
+	taskList, err := taskManager.List(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+
+	pagination.SetTotalCount(len(taskList))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       taskList,
+	}
+
+	c.JSON(200, apiResult)
 }
 
 func clusterCreateEndpoint(c *napnap.Context) {
