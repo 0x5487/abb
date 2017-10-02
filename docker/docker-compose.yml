@@ -2,20 +2,11 @@ version: '3.3'
 services:
   api:
     image: jasonsoft/abb-api:latest
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
     ports:
       - target: 10214
         published: 10214
         protocol: tcp
-        mode: ingress
-    networks:
-      - abb
+        mode: host
     restart: always
     logging:
       options:
@@ -37,6 +28,3 @@ services:
         parallelism: 1
         delay: 10s
         failure_action: pause
-networks:
-  abb:
-    driver: overlay

@@ -29,7 +29,8 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 				MaxAttempts: &target.Spec.Deploy.RestartPolicy.MaxAttempts,
 				Window:      &target.Spec.Deploy.RestartPolicy.Window,
 			},
-			Placement: &swarm.Placement{},
+			Placement:     &swarm.Placement{},
+			ContainerSpec: &swarm.ContainerSpec{},
 		},
 		EndpointSpec: &swarm.EndpointSpec{},
 	}
