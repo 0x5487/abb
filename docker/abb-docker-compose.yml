@@ -1,0 +1,54 @@
+version: '3.3'
+services:
+  api:
+    image: jasonsoft/abb-api:latest
+    ports:
+      - target: 10214
+        published: 10214
+        protocol: tcp
+        mode: host
+    restart: always
+    logging:
+      options:
+        max-size: 50m
+    environment:
+      - ABB_DB_CONNECTION_STRING=
+      - ABB_DB_USERNAME=
+      - ABB_DB_PASSWORD=
+      - ABB_DB_ADDRESS=
+      - ABB_DB_DBNAME=
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 10
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+  web:
+    image: jasonsoft/abb-web:latest
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+    restart: always
+    logging:
+      options:
+        max-size: 50m
+    environment:
+      - ABB_WEB_API_HOST=
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 10
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
