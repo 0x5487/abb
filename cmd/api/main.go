@@ -34,7 +34,10 @@ func main() {
 	nap := napnap.New()
 	nap.Use(napnap.NewHealth())
 
-	corsOpts := napnap.Options{}
+	corsOpts := napnap.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+	}
 	nap.Use(napnap.NewCors(corsOpts))
 	nap.Use(abb.NewErrorHandlingMiddleware())
 	nap.Use(abb.NewAbbRouter())
