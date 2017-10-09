@@ -2,6 +2,8 @@ package abb
 
 import (
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"strings"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/types"
 	"github.com/jasonsoft/log"
+	"github.com/jmoiron/sqlx"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -29,6 +32,7 @@ func NewClusterManager(repo types.ClusterRepository) types.ClusterService {
 }
 
 func (manager *ClusterManager) ClusterCreate(ctx context.Context, target *types.Cluster) error {
+	target.ID = uuid.NewV4().String()
 	err := manager.repo.ClusterCreate(ctx, target)
 	if err != nil {
 		return err
@@ -66,69 +70,104 @@ func (manager *ClusterManager) ClusterByName(ctx context.Context, name string) (
 // Database
 // ************************
 
-// type ClusterDatabase struct {
-// 	db *sqlx.DB
-// }
+type ClusterDatabase struct {
+	db *sqlx.DB
+}
 
-// func NewClusterDatabase(db *sqlx.DB) types.ClusterRepository {
-// 	return &ClusterDatabase{
-// 		db: db,
-// 	}
-// }
+func NewClusterDatabase(db *sqlx.DB) types.ClusterRepository {
+	return &ClusterDatabase{
+		db: db,
+	}
+}
 
-// const clusterListSQL = "SELECT `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters"
+const clusterCreateSQL = "INSERT INTO `clusters` (`id`, `name`, `host`, `created_at`, `updated_at`) VALUES (UNHEX(:id), :name, :host, :created_at, :updated_at);"
 
-// func (c *ClusterDatabase) ClusterList(ctx context.Context) ([]*types.Cluster, error) {
-// 	logger := log.FromContext(ctx)
+func (c *ClusterDatabase) ClusterCreate(ctx context.Context, entity *types.Cluster) error {
+	logger := log.FromContext(ctx)
 
-// 	var clusters []*types.Cluster
-// 	err := c.db.Select(&clusters, clusterListSQL)
-// 	if err != nil {
-// 		if err == sql.ErrNoRows {
-// 			return nil, nil
-// 		}
-// 		logger.Errorf("abb: get all clusters fail: %v", err)
-// 		return nil, err
-// 	}
+	nowUTC := time.Now().UTC()
+	entity.ID = strings.Replace(entity.ID, "-", "", -1)
+	entity.CreatedAt = &nowUTC
+	entity.UpdatedAt = &nowUTC
 
-// 	return clusters, nil
-// }
+	logger.Infof("cluster id: %s", entity.ID)
+	_, err := c.db.NamedExec(clusterCreateSQL, entity)
+	if err != nil {
+		logger.Errorf("cluster: insert cluster fail: %v", err)
+		return err
+	}
+	return nil
+}
 
-// const clusterByNameSQL = "SELECT `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters where (`name`= :name);"
+const clusterUpdateSQL = "UPDATE `clusters` SET `name`= :name, `host`= :host, `created_at`= :created_at, `updated_at`= :updated_at where id = UNHEX(:id);"
 
-// func (c *ClusterDatabase) ClusterByName(ctx context.Context, name string) (*types.Cluster, error) {
-// 	logger := log.FromContext(ctx)
+func (c *ClusterDatabase) ClusterUpdate(ctx context.Context, entity *types.Cluster) error {
+	logger := log.FromContext(ctx)
 
-// 	clusterByNameSQLStmt, err := c.db.PrepareNamed(clusterByNameSQL)
-// 	if err != nil {
-// 		logger.Errorf("abb: prepare sql fail: %v", err)
-// 		return nil, err
-// 	}
-// 	defer clusterByNameSQLStmt.Close()
+	nowUTC := time.Now().UTC()
+	entity.ID = strings.Replace(entity.ID, "-", "", -1)
+	entity.UpdatedAt = &nowUTC
+	_, err := c.db.NamedExec(clusterUpdateSQL, entity)
+	if err != nil {
+		logger.Errorf("cluster: update cluster fail: %v", err)
+		return err
+	}
+	return nil
+}
 
-// 	m := map[string]interface{}{
-// 		"name": name,
-// 	}
+const clusterListSQL = "SELECT LOWER(HEX(id)) as `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters"
 
-// 	cluster := types.Cluster{}
+func (c *ClusterDatabase) ClusterList(ctx context.Context) ([]*types.Cluster, error) {
+	logger := log.FromContext(ctx)
 
-// 	for i := 0; i < 10; i++ {
-// 		err = clusterByNameSQLStmt.Get(&cluster, m)
-// 		if err == driver.ErrBadConn {
-// 			continue
-// 		}
-// 		if err != nil {
-// 			if err == sql.ErrNoRows {
-// 				return nil, nil
-// 			}
-// 			logger.Errorf("abb: get request fail: %v", err)
-// 			return nil, err
-// 		}
-// 		break
-// 	}
+	var clusters []*types.Cluster
+	err := c.db.Select(&clusters, clusterListSQL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		logger.Errorf("abb: get all clusters fail: %v", err)
+		return nil, err
+	}
 
-// 	return &cluster, nil
-// }
+	return clusters, nil
+}
+
+const clusterByNameSQL = "SELECT LOWER(HEX(id)) as `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters where (`name`= :name);"
+
+func (c *ClusterDatabase) ClusterByName(ctx context.Context, name string) (*types.Cluster, error) {
+	logger := log.FromContext(ctx)
+
+	clusterByNameSQLStmt, err := c.db.PrepareNamed(clusterByNameSQL)
+	if err != nil {
+		logger.Errorf("abb: prepare sql fail: %v", err)
+		return nil, err
+	}
+	defer clusterByNameSQLStmt.Close()
+
+	m := map[string]interface{}{
+		"name": name,
+	}
+
+	cluster := types.Cluster{}
+
+	for i := 0; i < 10; i++ {
+		err = clusterByNameSQLStmt.Get(&cluster, m)
+		if err == driver.ErrBadConn {
+			continue
+		}
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			logger.Errorf("abb: get request fail: %v", err)
+			return nil, err
+		}
+		break
+	}
+
+	return &cluster, nil
+}
 
 // ************************
 // MongoDB
@@ -167,8 +206,8 @@ func (c *ClusterMongo) ClusterCreate(ctx context.Context, target *types.Cluster)
 	col := session.DB("abb").C("clusters")
 	target.ID = uuid.NewV4().String()
 	nowUTC := time.Now().UTC()
-	target.CreatedAt = nowUTC
-	target.UpdatedAt = nowUTC
+	target.CreatedAt = &nowUTC
+	target.UpdatedAt = &nowUTC
 	err := col.Insert(target)
 
 	if err != nil {
@@ -188,7 +227,7 @@ func (c *ClusterMongo) ClusterUpdate(ctx context.Context, target *types.Cluster)
 		return app.AppError{ErrorCode: "invalid_input", Message: "id can't be empty or null."}
 	}
 	nowUTC := time.Now().UTC()
-	target.UpdatedAt = nowUTC
+	target.UpdatedAt = &nowUTC
 
 	session := _mongoSession.Clone()
 	defer session.Close()

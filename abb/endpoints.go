@@ -675,16 +675,23 @@ func serviceListEndpoint(c *napnap.Context) {
 	if err != nil {
 		panic(err)
 	}
+	if cluster == nil {
+		panic(app.AppError{ErrorCode: "not_found", Message: "cluster doesn't exist"})
+	}
 
 	serviceManager, err := NewServiceManager(cluster, _serviceRepo)
 	if err != nil {
 		panic(err)
 	}
 
-	opts := types.ServiceListOptions{}
+	opts := types.ServiceFilterOptions{}
 	result, err := serviceManager.List(ctx, opts)
 	if err != nil {
 		panic(err)
+	}
+
+	if len(result) == 0 {
+		result = []*types.Service{}
 	}
 
 	pagination.SetTotalCount(len(result))

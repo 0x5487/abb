@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	sqlxTypes "github.com/jmoiron/sqlx/types"
 )
 
 type ServiceGetOptions struct {
@@ -24,16 +25,15 @@ type ServiceService interface {
 	ServiceUpdate(ctx context.Context, target *Service) error
 	ServiceStop(ctx context.Context, id string) error
 	Redeploy(ctx context.Context, serviceName string) error
-	List(ctx context.Context, opts ServiceListOptions) ([]*Service, error)
+	List(ctx context.Context, opts ServiceFilterOptions) ([]*Service, error)
 }
 
 type ServiceRepository interface {
-	FindByID(ctx context.Context, id string) (*Service, error)
-	FindByName(ctx context.Context, name string) (*Service, error)
 	Insert(ctx context.Context, target *Service) error
 	Update(ctx context.Context, target *Service) error
 	Delete(ctx context.Context, id string) error
-	Find(ctx context.Context, opts ServiceListOptions) ([]*Service, error)
+	FindOne(ctx context.Context, opts ServiceFilterOptions) (*Service, error)
+	Find(ctx context.Context, opts ServiceFilterOptions) ([]*Service, error)
 }
 
 type ServiceSpec struct {
@@ -46,13 +46,14 @@ type ServiceSpec struct {
 }
 
 type Service struct {
-	ID               string           `json:"id" db:"id" bson:"_id"`
-	ClusterID        string           `json:"cluster_id" db:"cluster_id" bson:"cluster_id"`
-	Name             string           `json:"name" db:"name" bson:"name"`
-	Spec             ServiceSpec      `json:"spec" db:"-" bson:"spec"`
-	DeploymentStatus DeploymentStatus `json:"deployment_status" db:"-" bson:"-"`
-	CreatedAt        time.Time        `json:"created_at" db:"created_at" bson:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at" db:"updated_at" bson:"updated_at"`
+	ID               string             `json:"id" db:"id" bson:"_id"`
+	ClusterID        string             `json:"cluster_id" db:"cluster_id" bson:"cluster_id"`
+	Name             string             `json:"name" db:"name" bson:"name"`
+	Spec             ServiceSpec        `json:"spec" db:"-" bson:"spec"`
+	SpecJSON         sqlxTypes.JSONText `json:"-" db:"specJSON" bson:"-"`
+	DeploymentStatus DeploymentStatus   `json:"deployment_status" db:"-" bson:"-"`
+	CreatedAt        *time.Time         `json:"created_at" db:"created_at" bson:"created_at"`
+	UpdatedAt        *time.Time         `json:"updated_at" db:"updated_at" bson:"updated_at"`
 }
 
 // DeploymentStatus stores the information about mode and replicas to be used by template
@@ -97,7 +98,10 @@ type Deploy struct {
 	Constraints   []string      `json:"constraints" bson:"constraints"`
 }
 
-type ServiceListOptions struct {
+type ServiceFilterOptions struct {
+	ClusterID   string
+	ServiceID   string
+	ServiceName string
 }
 
 type ServiceLogResult struct {

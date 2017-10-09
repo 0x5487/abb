@@ -49,6 +49,7 @@ func init() {
 		_config = &Configuration{
 			Database: Database{
 				ConnectionString: os.Getenv("ABB_DB_CONNECTION_STRING"),
+				Type:             os.Getenv("ABB_DB_TYPE"),
 				Username:         os.Getenv("ABB_DB_USERNAME"),
 				Password:         os.Getenv("ABB_DB_PASSWORD"),
 				Address:          os.Getenv("ABB_DB_ADDRESS"),

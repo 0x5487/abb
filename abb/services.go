@@ -2,6 +2,7 @@ package abb
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -14,9 +15,11 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/types"
 	"github.com/jasonsoft/log"
+	"github.com/jmoiron/sqlx"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -141,6 +144,7 @@ func (m *ServiceManager) DockerClient() *client.Client {
 }
 
 func (m *ServiceManager) ServiceCreate(ctx context.Context, target *types.Service) error {
+	target.ID = uuid.NewV4().String()
 	return m.repo.Insert(ctx, target)
 }
 
@@ -157,12 +161,21 @@ func (m *ServiceManager) ServiceUpdate(ctx context.Context, target *types.Servic
 
 func (m *ServiceManager) ServiceGetByID(ctx context.Context, id string) (*types.Service, error) {
 	// logger := log.FromContext(ctx)
-	service, err := m.repo.FindByID(ctx, id)
+	opts := types.ServiceFilterOptions{
+		ClusterID: m.cluster.ID,
+		ServiceID: id,
+	}
+
+	service, err := m.repo.FindOne(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	if service == nil {
-		service, err = m.repo.FindByName(ctx, id)
+		opts := types.ServiceFilterOptions{
+			ClusterID:   m.cluster.ID,
+			ServiceName: id,
+		}
+		service, err = m.repo.FindOne(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -185,12 +198,21 @@ func (m *ServiceManager) ServiceGetByID(ctx context.Context, id string) (*types.
 
 func (m *ServiceManager) ServiceRawByID(ctx context.Context, id string) (*swarm.Service, error) {
 	logger := log.FromContext(ctx)
-	service, err := m.repo.FindByID(ctx, id)
+
+	opts := types.ServiceFilterOptions{
+		ClusterID: m.cluster.ID,
+		ServiceID: id,
+	}
+	service, err := m.repo.FindOne(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	if service == nil {
-		service, err = m.repo.FindByName(ctx, id)
+		opts := types.ServiceFilterOptions{
+			ClusterID:   m.cluster.ID,
+			ServiceName: id,
+		}
+		service, err = m.repo.FindOne(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -216,12 +238,21 @@ func (m *ServiceManager) ServiceRawByID(ctx context.Context, id string) (*swarm.
 
 func (m *ServiceManager) ServiceLogsByID(ctx context.Context, id string) (string, error) {
 	logger := log.FromContext(ctx)
-	service, err := m.repo.FindByID(ctx, id)
+
+	opts := types.ServiceFilterOptions{
+		ClusterID: m.cluster.ID,
+		ServiceID: id,
+	}
+	service, err := m.repo.FindOne(ctx, opts)
 	if err != nil {
 		return "", err
 	}
 	if service == nil {
-		service, err = m.repo.FindByName(ctx, id)
+		opts := types.ServiceFilterOptions{
+			ClusterID:   m.cluster.ID,
+			ServiceName: id,
+		}
+		service, err = m.repo.FindOne(ctx, opts)
 		if err != nil {
 			return "", err
 		}
@@ -255,12 +286,20 @@ func (m *ServiceManager) ServiceLogsByID(ctx context.Context, id string) (string
 
 func (m *ServiceManager) ServiceTaskListByID(ctx context.Context, id string) ([]swarm.Task, error) {
 	logger := log.FromContext(ctx)
-	service, err := m.repo.FindByID(ctx, id)
+	opts := types.ServiceFilterOptions{
+		ClusterID: m.cluster.ID,
+		ServiceID: id,
+	}
+	service, err := m.repo.FindOne(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	if service == nil {
-		service, err = m.repo.FindByName(ctx, id)
+		opts := types.ServiceFilterOptions{
+			ClusterID:   m.cluster.ID,
+			ServiceName: id,
+		}
+		service, err = m.repo.FindOne(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -287,7 +326,11 @@ func (m *ServiceManager) ServiceTaskListByID(ctx context.Context, id string) ([]
 }
 
 func (m *ServiceManager) ServiceGetByName(ctx context.Context, name string) (*types.Service, error) {
-	return m.repo.FindByName(ctx, name)
+	opts := types.ServiceFilterOptions{
+		ClusterID:   m.cluster.ID,
+		ServiceName: name,
+	}
+	return m.repo.FindOne(ctx, opts)
 }
 
 func (m *ServiceManager) deploymentStatusList(ctx context.Context) map[string]types.DeploymentStatus {
@@ -316,21 +359,25 @@ func (m *ServiceManager) deploymentStatusList(ctx context.Context) map[string]ty
 	return serviceStatus
 }
 
-func (m *ServiceManager) List(ctx context.Context, opts types.ServiceListOptions) ([]*types.Service, error) {
+func (m *ServiceManager) List(ctx context.Context, opts types.ServiceFilterOptions) ([]*types.Service, error) {
 
 	// get all services
-	serviceListOpts := types.ServiceListOptions{}
+	serviceListOpts := types.ServiceFilterOptions{
+		ClusterID: m.cluster.ID,
+	}
 	svcList, err := m.repo.Find(ctx, serviceListOpts)
 	if err != nil {
 		panic(err)
 	}
 
-	dockerServiceStatus := m.deploymentStatusList(ctx)
+	if len(svcList) > 0 {
+		dockerServiceStatus := m.deploymentStatusList(ctx)
 
-	for _, svc := range svcList {
-		for _, dockerStatus := range dockerServiceStatus {
-			if svc.Name == dockerStatus.ServiceName {
-				svc.DeploymentStatus = dockerStatus
+		for _, svc := range svcList {
+			for _, dockerStatus := range dockerServiceStatus {
+				if svc.Name == dockerStatus.ServiceName {
+					svc.DeploymentStatus = dockerStatus
+				}
 			}
 		}
 	}
@@ -392,7 +439,7 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 
 	// ensure the service is stop
 	if service.DeploymentStatus.AvailableReplicas > 0 {
-		return app.AppError{ErrorCode: "service_must_stop", Message: "It seems the service is still running, you need to stop the service before delete it"}
+		return app.AppError{ErrorCode: "stop_service_first", Message: "It seems the service is still running, you need to stop the service before delete it"}
 	}
 
 	dockerClient := m.DockerClient()
@@ -400,9 +447,7 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 
 	err = dockerClient.ServiceRemove(ctx, service.Name)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-
-		} else {
+		if !client.IsErrServiceNotFound(err) {
 			logger.Errorf("abb: delete service error: %v", err)
 			return err
 		}
@@ -415,119 +460,144 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 // Database
 // ************************
 
-// type serviceDAO struct {
-// 	db *sqlx.DB
-// }
+type serviceDAO struct {
+	db *sqlx.DB
+}
 
-// func newServiceDAO(db *sqlx.DB) types.ServiceRepository {
-// 	return &serviceDAO{
-// 		db: db,
-// 	}
-// }
+func newServiceDAO(db *sqlx.DB) types.ServiceRepository {
+	return &serviceDAO{
+		db: db,
+	}
+}
 
-// const insertServiceSQL = "INSERT INTO `services` (`cluster_id`, `name`, `spec`, `created_at`, `updated_at`) VALUES (:cluster_id, :name, :spec, :created_at, :updated_at);"
+const insertServiceSQL = "INSERT INTO `services` (`id`, `cluster_id`, `name`, `specJSON`, `created_at`, `updated_at`) VALUES (UNHEX(:id), UNHEX(:cluster_id), :name, :specJSON, :created_at, :updated_at);"
 
-// func (dao *serviceDAO) Insert(ctx context.Context, entity *types.Service) error {
-// 	logger := log.FromContext(ctx)
+func (repo *serviceDAO) Insert(ctx context.Context, entity *types.Service) error {
+	logger := log.FromContext(ctx)
 
-// 	nowUTC := time.Now().UTC()
-// 	entity.CreatedAt = &nowUTC
-// 	entity.UpdatedAt = &nowUTC
+	nowUTC := time.Now().UTC()
+	entity.ID = strings.Replace(entity.ID, "-", "", -1)
+	entity.CreatedAt = &nowUTC
+	entity.UpdatedAt = &nowUTC
 
-// 	strB, err := json.Marshal(entity.Spec)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	entity.SpecStr = string(strB)
+	strB, err := json.Marshal(entity.Spec)
+	if err != nil {
+		return err
+	}
+	entity.SpecJSON = strB
+	//entity.SpecStr = string(strB)
 
-// 	sqlResult, err := dao.db.NamedExec(insertServiceSQL, entity)
-// 	if err != nil {
-// 		mysqlerr, ok := err.(*mysql.MySQLError)
-// 		if ok && mysqlerr.Number == 1062 {
-// 			return app.AppError{ErrorCode: "service_name_exists", Message: "service name already exists"}
-// 		}
-// 		logger.Errorf("abb: insert service fail: %v", err)
-// 		return err
-// 	}
-// 	lastID, err := sqlResult.LastInsertId()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	entity.ID = int(lastID)
-// 	return nil
-// }
+	_, err = repo.db.NamedExec(insertServiceSQL, entity)
+	if err != nil {
+		mysqlerr, ok := err.(*mysql.MySQLError)
+		if ok && mysqlerr.Number == 1062 {
+			return app.AppError{ErrorCode: "service_name_exists", Message: "service name already exists"}
+		}
+		logger.Errorf("abb: insert service fail: %v", err)
+		return err
+	}
 
-// const selectServiceByIDSQL = "SELECT id, cluster_id, `name`, `spec`, created_at, updated_at FROM services where 1=1"
+	return nil
+}
 
-// func (dao *serviceDAO) SelectOne(ctx context.Context, opts types.ServiceGetOptions) (*types.Service, error) {
-// 	logger := log.FromContext(ctx)
+const updateServiceSQL = "UPDATE `services` SET `cluster_id`=  UNHEX(:cluster_id), `name`= :name, `specJSON`= :specJSON, `updated_at`= :updated_at WHERE id = UNHEX(:id);"
 
-// 	m := map[string]interface{}{}
+func (repo *serviceDAO) Update(ctx context.Context, entity *types.Service) error {
+	logger := log.FromContext(ctx)
 
-// 	var sqlStmt string
-// 	if opts.ID > 0 {
-// 		sqlStmt = selectServiceByIDSQL + " And (id = :id)"
-// 		m["id"] = opts.ID
-// 	}
+	nowUTC := time.Now().UTC()
+	entity.UpdatedAt = &nowUTC
 
-// 	if len(opts.Name) > 0 {
-// 		sqlStmt = selectServiceByIDSQL + " And (`name` = :name)"
-// 		m["name"] = opts.Name
-// 	}
+	strB, err := json.Marshal(entity.Spec)
+	if err != nil {
+		return err
+	}
+	entity.SpecJSON = strB
 
-// 	selectServiceByIDStmt, err := dao.db.PrepareNamed(sqlStmt)
-// 	if err != nil {
-// 		logger.Errorf("abb: prepare sql fail: %v", err)
-// 		return nil, err
-// 	}
-// 	defer selectServiceByIDStmt.Close()
+	_, err = repo.db.NamedExec(updateServiceSQL, entity)
+	if err != nil {
+		logger.Errorf("service: update service fail: %v", err)
+		return err
+	}
+	return nil
+}
 
-// 	service := types.Service{}
-// 	for i := 0; i < 10; i++ {
-// 		err = selectServiceByIDStmt.Get(&service, m)
-// 		if err == driver.ErrBadConn {
-// 			continue
-// 		}
-// 		if err != nil {
-// 			if err == sql.ErrNoRows {
-// 				return nil, nil
-// 			}
-// 			logger.Errorf("abb: get request fail: %v", err)
-// 			return nil, err
-// 		}
-// 		break
-// 	}
+const deleteServiceSQL = "DELETE FROM `services` WHERE `id` = UNHEX(:id);"
 
-// 	if err := json.Unmarshal([]byte(service.SpecStr), &service.Spec); err != nil {
-// 		return nil, err
-// 	}
+func (repo *serviceDAO) Delete(ctx context.Context, id string) error {
+	logger := log.FromContext(ctx)
+	m := map[string]interface{}{
+		"id": id,
+	}
 
-// 	return &service, nil
-// }
+	_, err := repo.db.NamedExec(deleteServiceSQL, m)
+	if err != nil {
+		logger.Errorf("service: delete service fail: %v", err)
+		return err
+	}
+	return nil
+}
 
-// const listServiceList = "SELECT id, cluster_id, `name`, `spec`, created_at, updated_at FROM services"
+const listServiceListSQL = "SELECT LOWER(HEX(id)) as `id`, LOWER(HEX(cluster_id)) as `cluster_id`, `name`, `specJSON`, created_at, updated_at FROM services WHERE 1=1"
 
-// func (dao *serviceDAO) List(ctx context.Context, opts types.ServiceListOptions) ([]*types.Service, error) {
-// 	logger := log.FromContext(ctx)
+func (repo *serviceDAO) Find(ctx context.Context, opts types.ServiceFilterOptions) ([]*types.Service, error) {
+	logger := log.FromContext(ctx)
 
-// 	var services []*types.Service
-// 	err := dao.db.Select(&services, listServiceList)
-// 	if err != nil {
-// 		logger.Errorf("abb: list services fail: %v", err)
-// 	}
+	findServiceSQL := listServiceListSQL
+	param := map[string]interface{}{}
 
-// 	for _, svc := range services {
-// 		if err := json.Unmarshal([]byte(svc.SpecStr), &svc.Spec); err != nil {
-// 			return nil, err
-// 		}
-// 	}
+	if len(opts.ClusterID) > 0 {
+		findServiceSQL += " AND cluster_id = UNHEX(:cluster_id)"
+		logger.Debugf("service: find service: cluster_id: %s", opts.ClusterID)
+		param["cluster_id"] = opts.ClusterID
+	}
 
-// 	return services, nil
-// }
+	if len(opts.ServiceID) > 0 {
+		findServiceSQL += " AND id = UNHEX(:id)"
+		logger.Debugf("service: find service: service_id: %s", opts.ServiceID)
+		param["id"] = opts.ServiceID
+	}
 
-// func (dao *serviceDAO) Update(ctx context.Context, target *types.Service) error {
-// 	return nil
-// }
+	if len(opts.ServiceName) > 0 {
+		findServiceSQL += " AND name = :name"
+		logger.Debugf("service: find service: service_name: %s", opts.ServiceName)
+		param["name"] = opts.ServiceName
+	}
+
+	var services []*types.Service
+
+	findServiceSQLStmt, err := repo.db.PrepareNamed(findServiceSQL)
+	if err != nil {
+		log.Errorf("service: prepare sql fail: %v", err)
+		return nil, err
+	}
+
+	err = findServiceSQLStmt.Select(&services, param)
+	if err != nil {
+		logger.Errorf("abb: list services fail: %v", err)
+	}
+
+	for _, svc := range services {
+		if err := json.Unmarshal(svc.SpecJSON, &svc.Spec); err != nil {
+			return nil, err
+		}
+	}
+
+	return services, nil
+}
+
+func (repo *serviceDAO) FindOne(ctx context.Context, opts types.ServiceFilterOptions) (*types.Service, error) {
+	result, err := repo.Find(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, nil
+	}
+
+	return result[0], nil
+}
 
 // ************************
 // MongoDB
@@ -566,8 +636,8 @@ func (repo *ServiceMongo) Insert(ctx context.Context, target *types.Service) err
 	col := session.DB("abb").C("services")
 	target.ID = uuid.NewV4().String()
 	nowUTC := time.Now().UTC()
-	target.CreatedAt = nowUTC
-	target.UpdatedAt = nowUTC
+	target.CreatedAt = &nowUTC
+	target.UpdatedAt = &nowUTC
 	err := col.Insert(target)
 
 	if err != nil {
@@ -587,7 +657,7 @@ func (repo *ServiceMongo) Update(ctx context.Context, target *types.Service) err
 		return app.AppError{ErrorCode: "invalid_input", Message: "id can't be empty or null."}
 	}
 	nowUTC := time.Now().UTC()
-	target.UpdatedAt = nowUTC
+	target.UpdatedAt = &nowUTC
 
 	session := _mongoSession.Clone()
 	defer session.Close()
@@ -662,15 +732,21 @@ func (repo *ServiceMongo) FindByID(ctx context.Context, id string) (*types.Servi
 	return &service, nil
 }
 
-func (repo *ServiceMongo) Find(ctx context.Context, opts types.ServiceListOptions) ([]*types.Service, error) {
+func (repo *ServiceMongo) Find(ctx context.Context, opts types.ServiceFilterOptions) ([]*types.Service, error) {
 	logger := log.FromContext(ctx)
 
 	session := _mongoSession.Clone()
 	defer session.Close()
 
+	filters := bson.M{}
+
+	if len(opts.ClusterID) > 0 {
+		filters["cluster_id"] = opts.ClusterID
+	}
+
 	services := []*types.Service{}
 	col := session.DB("abb").C("services")
-	err := col.Find(bson.M{}).Sort("-created_at").All(&services)
+	err := col.Find(filters).Sort("-created_at").All(&services)
 	if err != nil {
 		if err.Error() == "not found" {
 			return nil, nil
@@ -679,4 +755,8 @@ func (repo *ServiceMongo) Find(ctx context.Context, opts types.ServiceListOption
 		return nil, err
 	}
 	return services, nil
+}
+
+func (repo *ServiceMongo) FindOne(ctx context.Context, opts types.ServiceFilterOptions) (*types.Service, error) {
+	return nil, nil
 }
