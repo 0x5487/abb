@@ -1,1 +1,1 @@
-docker build -t jasonsoft/abb-api -f docker/dockerfile .
+docker build --no-cache -t jasonsoft/abb-api -f docker/dockerfile .

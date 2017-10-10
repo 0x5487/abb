@@ -143,11 +143,11 @@
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/go-audit",
-			"Rev": "a086ac2770051626a64bc2c365a96671a021c12d"
+			"Rev": "e47d08321dc4ccacfbb9519721a360aff42fe923"
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/go-audit/auditers/mysql",
-			"Rev": "a086ac2770051626a64bc2c365a96671a021c12d"
+			"Rev": "e47d08321dc4ccacfbb9519721a360aff42fe923"
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/log",
