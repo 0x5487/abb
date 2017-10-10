@@ -1,8 +1,12 @@
 package abb
 
 import (
+	"fmt"
+
 	"github.com/jasonsoft/abb/app"
+	"github.com/jasonsoft/abb/identity"
 	"github.com/jasonsoft/abb/types"
+	"github.com/jasonsoft/go-audit"
 	"github.com/jasonsoft/napnap"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -95,6 +99,19 @@ func clusterCreateEndpoint(c *napnap.Context) {
 	if err != nil {
 		panic(err)
 	}
+
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := "cluster"
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  cluster.Name,
+		Actor:     actor,
+		Action:    "create",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
 
 	c.JSON(200, cluster)
 
@@ -359,9 +376,27 @@ func serviceStopEndpoint(c *napnap.Context) {
 	}
 
 	err = serviceManager.ServiceStop(ctx, serviceID)
+
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.services", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  serviceID,
+		Actor:     actor,
+		Action:    "stop",
+	}
+
 	if err != nil {
+		event.State = audit.FAILED
+		event.Message = err.Error()
+		audit.Log(event)
 		panic(err)
 	}
+
+	event.State = audit.SUCCESS
+	audit.Log(event)
 
 	c.SetStatus(200)
 }
@@ -508,6 +543,19 @@ func serviceRedeployEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.services", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  serviceID,
+		Actor:     actor,
+		Action:    "redeploy",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
+
 	c.SetStatus(200)
 }
 
@@ -551,6 +599,19 @@ func serviceDeleteEndpoint(c *napnap.Context) {
 	if err != nil {
 		panic(err)
 	}
+
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.services", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  serviceID,
+		Actor:     actor,
+		Action:    "delete",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
 	c.SetStatus(204)
 }
 
@@ -586,27 +647,18 @@ func serviceCreateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
-	// dockerClient := serviceManager.DockerClient()
-	// defer dockerClient.Close()
-
-	// var serviceSpec swarm.ServiceSpec
-	// c.BindJSON(&serviceSpec)
-
-	// createOptions := dockerTypes.ServiceCreateOptions{}
-	// svcResp, err := dockerClient.ServiceCreate(ctx, serviceSpec, createOptions)
-	// if err != nil {
-	// 	if strings.Contains(err.Error(), "name conflicts") {
-	// 		panic(app.AppError{ErrorCode: "service_exists", Message: "name conflicts with an existing service"})
-	// 	}
-	// 	log.Panicf("abb: create service err: %s", err.Error())
-	// }
-
-	// serviceInspectWithRawOpt := dockerTypes.ServiceInspectOptions{}
-	// result, _, err := dockerClient.ServiceInspectWithRaw(ctx, svcResp.ID, serviceInspectWithRawOpt)
-	// if err != nil {
-	// 	log.Panicf("abb: get service err: %s", err.Error())
-	// }
-
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.services", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  service.Name,
+		Actor:     actor,
+		Action:    "create",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
 	c.JSON(200, service)
 
 }
@@ -659,6 +711,18 @@ func serviceUpdateEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.services", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  serviceID,
+		Actor:     actor,
+		Action:    "save",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
 	c.JSON(200, service)
 }
 

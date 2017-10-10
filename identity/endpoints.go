@@ -2,6 +2,7 @@ package identity
 
 import (
 	"github.com/jasonsoft/abb/app"
+	audit "github.com/jasonsoft/go-audit"
 	"github.com/jasonsoft/napnap"
 )
 
@@ -447,16 +448,39 @@ func createTokenEndpoint(c *napnap.Context) {
 	}
 
 	ok, userid, err := _membershipSvc.Login(ctx, username, password)
+
+	// audit the action
+	namespace := "auth"
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  username,
+		Actor:     "",
+		Action:    "login",
+	}
+
 	if err != nil {
+		event.State = audit.FAILED
+		event.Message = err.Error()
+		audit.Log(event)
 		panic(err)
 	}
 	if !ok {
+		event.State = audit.FAILED
+		audit.Log(event)
 		panic(app.AppError{ErrorCode: "login_fail", Message: "username or password is invalid"})
 	}
+
 	result, err := _membershipSvc.GenerateToken(ctx, userid)
 	if err != nil {
+		event.State = audit.FAILED
+		event.Message = err.Error()
+		audit.Log(event)
 		panic(err)
 	}
+
+	event.State = audit.SUCCESS
+	audit.Log(event)
+
 	c.JSON(200, result)
 }
 

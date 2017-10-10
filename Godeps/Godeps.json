@@ -3,13 +3,18 @@
 	"GoVersion": "go1.9",
 	"GodepVersion": "v79",
 	"Packages": [
-		"./cmd/api"
+		"./..."
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Microsoft/go-winio",
 			"Comment": "v0.4.2",
 			"Rev": "f533f7a102197536779ea3a8cb881d639e21ec5a"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v3.0.0-20-ga539ee1",
+			"Rev": "a539ee1a749a2b895533f979515ac7e6e0f5b650"
 		},
 		{
 			"ImportPath": "github.com/docker/distribution/digestset",
@@ -128,13 +133,21 @@
 		},
 		{
 			"ImportPath": "github.com/go-sql-driver/mysql",
-			"Comment": "v1.3-35-g7785c74",
-			"Rev": "7785c74297136c027fdf2fd6f8931c0e19be8aa7"
+			"Comment": "v1.3-37-gee359f9",
+			"Rev": "ee359f95877bdef36cbb602711e49b6f0becfca9"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/proto",
 			"Comment": "v0.4-57-gf7f1376",
 			"Rev": "f7f1376d9d231a646d4e62fe1075623ced6db327"
+		},
+		{
+			"ImportPath": "github.com/jasonsoft/go-audit",
+			"Rev": "a086ac2770051626a64bc2c365a96671a021c12d"
+		},
+		{
+			"ImportPath": "github.com/jasonsoft/go-audit/auditers/mysql",
+			"Rev": "a086ac2770051626a64bc2c365a96671a021c12d"
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/log",
@@ -146,7 +159,22 @@
 		},
 		{
 			"ImportPath": "github.com/jasonsoft/napnap",
-			"Rev": "9be0e54d96ac2ebe34f749d3a891767a469bb4e9"
+			"Rev": "db097b389f88582ae6c248822e1d3d9199174469"
+		},
+		{
+			"ImportPath": "github.com/jmoiron/sqlx",
+			"Comment": "sqlx-v1.1-105-gf980a91",
+			"Rev": "f980a91bdc37abef88269b8f122d7de6352102f5"
+		},
+		{
+			"ImportPath": "github.com/jmoiron/sqlx/reflectx",
+			"Comment": "sqlx-v1.1-105-gf980a91",
+			"Rev": "f980a91bdc37abef88269b8f122d7de6352102f5"
+		},
+		{
+			"ImportPath": "github.com/jmoiron/sqlx/types",
+			"Comment": "sqlx-v1.1-105-gf980a91",
+			"Rev": "f980a91bdc37abef88269b8f122d7de6352102f5"
 		},
 		{
 			"ImportPath": "github.com/opencontainers/go-digest",

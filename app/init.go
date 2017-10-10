@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jasonsoft/go-audit"
+
 	"github.com/jasonsoft/abb/config"
+	"github.com/jasonsoft/go-audit/auditers/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -22,4 +25,8 @@ func init() {
 	DBX.SetMaxIdleConns(150)
 	DBX.SetMaxOpenConns(300)
 	DBX.SetConnMaxLifetime(14400 * time.Second)
+
+	// setup auditer
+	mysqlAuditer := mysql.NewMysqlAuditer(DBX.DB)
+	audit.SetAuditer(mysqlAuditer)
 }
