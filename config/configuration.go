@@ -28,7 +28,15 @@ type JwtConfig struct {
 }
 
 func newConfiguration() *Configuration {
-	return &Configuration{}
+	return &Configuration{
+		Database: Database{
+			Type: "mysql",
+		},
+		Jwt: JwtConfig{
+			SecretKey:     "",
+			DurationInMin: 60,
+		},
+	}
 }
 
 func (c *Configuration) isValid() error {

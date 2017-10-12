@@ -24,10 +24,6 @@ func init() {
 	dbx := app.DBX
 
 	var err error
-	_mongoSession, err = mgo.Dial(_config.Database.ConnectionString)
-	if err != nil {
-		panic(err)
-	}
 
 	switch strings.ToLower(_config.Database.Type) {
 	case "mysql":
@@ -40,6 +36,11 @@ func init() {
 		_serviceRepo = newServiceDAO(dbx)
 
 	case "mongo":
+		_mongoSession, err = mgo.Dial(_config.Database.ConnectionString)
+		if err != nil {
+			panic(err)
+		}
+
 		clusterRepo, err := NewClusterMongo()
 		if err != nil {
 			panic(err)

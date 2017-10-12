@@ -2,7 +2,7 @@ package abb
 
 import (
 	"context"
-	"fmt"
+	"sort"
 	"strings"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -34,10 +34,10 @@ func newTaskManager(cluster *types.Cluster) (types.TaskService, error) {
 func newTaskFromSwarmTask(target swarm.Task) types.Task {
 	return types.Task{
 		ID:   target.ID,
-		Name: target.Name,
+		Slot: target.Slot,
 		Status: types.TaskStatus{
 			TimeStamp: target.Status.Timestamp,
-			Message:   target.Status.Message,
+			Error:     target.Status.Err,
 			State:     string(target.Status.State),
 		},
 	}
@@ -50,16 +50,19 @@ func (m *TaskManager) DockerClient() *client.Client {
 func (m *TaskManager) List(ctx context.Context, opts types.TaskListOption) ([]types.Task, error) {
 	logger := log.FromContext(ctx)
 
-	// get all docker services
-	dockerServiceListOpts := dockerTypes.ServiceListOptions{}
-	dockerSvcList, err := m.client.ServiceList(ctx, dockerServiceListOpts)
+	// get all docker nodes
+	dockerNodeListOpts := dockerTypes.NodeListOptions{}
+	dockerNodeList, err := m.client.NodeList(ctx, dockerNodeListOpts)
 	if err != nil {
 		panic(err)
 	}
 
 	// get task per service
 	filterArgs := filters.NewArgs()
-	filterArgs.Add("desired-state", "running")
+
+	if len(opts.DesiredState) > 0 {
+		filterArgs.Add("desired-state", opts.DesiredState)
+	}
 
 	if len(opts.ServiceID) > 0 {
 		filterArgs.Add("service", opts.ServiceID)
@@ -80,18 +83,18 @@ func (m *TaskManager) List(ctx context.Context, opts types.TaskListOption) ([]ty
 		return nil, err
 	}
 
+	sort.Slice(taskList, func(i, j int) bool {
+		return taskList[i].Status.Timestamp.After(taskList[j].Status.Timestamp)
+	})
+
 	result := []types.Task{}
 
 	for _, task := range taskList {
 		newTask := newTaskFromSwarmTask(task)
 
-		for _, svc := range dockerSvcList {
-			if svc.ID == task.ServiceID {
-				if task.Slot != 0 {
-					newTask.Name = fmt.Sprintf("%v.%v", svc.Spec.Name, task.Slot)
-				} else {
-					newTask.Name = fmt.Sprintf("%v.%v", svc.Spec.Name, task.NodeID) // Global mode
-				}
+		for _, node := range dockerNodeList {
+			if node.ID == task.NodeID {
+				newTask.Node = node.Description.Hostname
 			}
 		}
 

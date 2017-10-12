@@ -12,11 +12,14 @@ services:
       options:
         max-size: 50m
     environment:
+      - ABB_DB_TYPE=
       - ABB_DB_CONNECTION_STRING=
       - ABB_DB_USERNAME=
       - ABB_DB_PASSWORD=
       - ABB_DB_ADDRESS=
       - ABB_DB_DBNAME=
+      - ABB_JWT_SECRET_KEY=
+      - ABB_JWT_DURATION_IN_MIN=
     deploy:
       mode: replicated
       replicas: 1

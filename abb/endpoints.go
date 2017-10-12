@@ -66,10 +66,16 @@ func taskListEndpoint(c *napnap.Context) {
 	}
 	defer taskManager.Close(ctx)
 
-	serviceID := c.Query("service_id")
+	opts := types.TaskListOption{}
 
-	opts := types.TaskListOption{
-		ServiceID: serviceID,
+	serviceID := c.Query("service_id")
+	if len(serviceID) > 0 {
+		opts.ServiceID = serviceID
+	}
+
+	desiredState := c.Query("desired-state")
+	if len(desiredState) > 0 {
+		opts.DesiredState = desiredState
 	}
 
 	taskList, err := taskManager.List(ctx, opts)

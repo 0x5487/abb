@@ -10,17 +10,19 @@ import (
 type TaskStatus struct {
 	TimeStamp time.Time `json:"timestamp"`
 	State     string    `json:"state"`
-	Message   string    `json:"message"`
+	Error     string    `json:"error"`
 }
 
 type Task struct {
 	ID     string     `json:"id"`
-	Name   string     `json:"name"`
+	Node   string     `json:"node"`
+	Slot   int        `json:"slot"`
 	Status TaskStatus `json:"status"`
 }
 
 type TaskListOption struct {
-	ServiceID string
+	ServiceID    string
+	DesiredState string
 }
 
 type TaskService interface {

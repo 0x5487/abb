@@ -6,6 +6,7 @@ import (
 	stdlog "log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -55,6 +56,14 @@ func init() {
 				Address:          os.Getenv("ABB_DB_ADDRESS"),
 				DBName:           os.Getenv("ABB_DB_DBNAME"),
 			},
+			Jwt: JwtConfig{
+				SecretKey: os.Getenv("ABB_JWT_SECRET_KEY"),
+			},
+		}
+
+		dInMinStr := os.Getenv("ABB_JWT_DURATION_IN_MIN")
+		if len(dInMinStr) > 0 {
+			_config.Jwt.DurationInMin, _ = strconv.Atoi(dInMinStr)
 		}
 	}
 
