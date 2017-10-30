@@ -20,7 +20,7 @@ type TaskManager struct {
 }
 
 func newTaskManager(cluster *types.Cluster) (types.TaskService, error) {
-	client, err := client.NewClient(cluster.Host, "v1.30", nil, nil)
+	client, err := client.NewClient(cluster.Host, "1.30", nil, nil)
 	if err != nil {
 		return nil, err
 	}

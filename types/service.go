@@ -91,9 +91,14 @@ type RestartPolicy struct {
 	Window      time.Duration `json:"window" bson:"window"`
 }
 
+type UpdateConfig struct {
+	Order string `json:"order"`
+}
+
 type Deploy struct {
 	Mode          string        `json:"mode" bson:"mode"`
 	Replicas      uint64        `json:"replicas" bson:"replicas"`
+	UpdateConfig  UpdateConfig  `json:"update_config"`
 	RestartPolicy RestartPolicy `json:"restart_policy" bson:"restart_policy"`
 	Constraints   []string      `json:"constraints" bson:"constraints"`
 }

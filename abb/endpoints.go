@@ -43,7 +43,151 @@ func NewAbbRouter() *napnap.Router {
 	// task
 	router.Get("/v1/clusters/:cluster_name/tasks", taskListEndpoint)
 
+	// config
+	router.Get("/v1/clusters/:cluster_name/configs", configListEndpoint)
+	router.Get("/v1/clusters/:cluster_name/configs/:config_id", configGetEndpoint)
+	router.Post("/v1/clusters/:cluster_name/configs", configCreateEndpoint)
+	router.Delete("/v1/clusters/:cluster_name/configs/:config_id", configDeleteEndpoint)
+
 	return router
+}
+
+func configGetEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	configID := c.Param("config_id")
+	if len(configID) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "config_id parameter was invalid"})
+	}
+
+	configManager, err := newConfigManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+	defer configManager.Close(ctx)
+
+	config, err := configManager.Get(ctx, configID)
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(200, config)
+}
+
+func configDeleteEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	var config types.Config
+	err := c.BindJSON(&config)
+	if err != nil {
+		panic(err)
+	}
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	configID := c.Param("config_id")
+	if len(configID) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "config_id parameter was invalid"})
+	}
+
+	configManager, err := newConfigManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+	defer configManager.Close(ctx)
+
+	err = configManager.Delete(ctx, configID)
+	if err != nil {
+		panic(err)
+	}
+
+	c.SetStatus(204)
+}
+
+func configCreateEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	var config types.Config
+	err := c.BindJSON(&config)
+	if err != nil {
+		panic(err)
+	}
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	configManager, err := newConfigManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+	defer configManager.Close(ctx)
+
+	err = configManager.Create(ctx, &config)
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(201, config)
+}
+
+func configListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+
+	configManager, err := newConfigManager(cluster)
+	if err != nil {
+		panic(err)
+	}
+	defer configManager.Close(ctx)
+
+	opts := types.ConfigListOption{}
+	configList, err := configManager.List(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+
+	pagination.SetTotalCount(len(configList))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       configList,
+	}
+
+	c.JSON(200, apiResult)
 }
 
 func taskListEndpoint(c *napnap.Context) {

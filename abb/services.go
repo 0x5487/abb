@@ -24,6 +24,10 @@ import (
 )
 
 func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkResource) swarm.ServiceSpec {
+	if len(target.Spec.Deploy.UpdateConfig.Order) == 0 {
+		target.Spec.Deploy.UpdateConfig.Order = "stop-first"
+	}
+
 	spec := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			RestartPolicy: &swarm.RestartPolicy{
@@ -36,6 +40,9 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 			ContainerSpec: &swarm.ContainerSpec{},
 		},
 		EndpointSpec: &swarm.EndpointSpec{},
+		UpdateConfig: &swarm.UpdateConfig{
+			Order: target.Spec.Deploy.UpdateConfig.Order,
+		},
 	}
 
 	switch strings.ToLower(target.Spec.Deploy.RestartPolicy.Condition) {
@@ -127,7 +134,7 @@ type ServiceManager struct {
 }
 
 func NewServiceManager(cluster *types.Cluster, repo types.ServiceRepository) (types.ServiceService, error) {
-	client, err := client.NewClient(cluster.Host, "v1.30", nil, nil)
+	client, err := client.NewClient(cluster.Host, "1.30", nil, nil)
 	if err != nil {
 		return nil, err
 	}
