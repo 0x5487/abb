@@ -3,6 +3,7 @@ package abb
 import (
 	"context"
 	"encoding/base64"
+	"strings"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -29,10 +30,11 @@ func newConfigManager(cluster *types.Cluster) (*ConfigManager, error) {
 }
 
 func newConfigFromSwarmConfig(config swarm.Config) *types.Config {
+	data := base64.StdEncoding.EncodeToString(config.Spec.Data[:])
 	return &types.Config{
 		ID:        config.ID,
 		Name:      config.Spec.Name,
-		Data:      string(config.Spec.Data[:]),
+		Data:      data,
 		CreatedAt: config.CreatedAt,
 	}
 }
@@ -76,6 +78,9 @@ func (m *ConfigManager) List(ctx context.Context, opts types.ConfigListOption) (
 
 func (m *ConfigManager) Create(ctx context.Context, config *types.Config) error {
 	logger := log.FromContext(ctx)
+
+	config.Name = strings.TrimSpace(config.Name)
+	config.Data = strings.TrimSpace(config.Data)
 
 	data, err := base64.StdEncoding.DecodeString(config.Data)
 	if err != nil {

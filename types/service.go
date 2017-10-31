@@ -37,12 +37,13 @@ type ServiceRepository interface {
 }
 
 type ServiceSpec struct {
-	Image        string       `json:"image" db:"-" bson:"image"`
-	Ports        []PortInfo   `json:"ports" db:"-" bson:"ports"`
-	Volumes      []VolumeInfo `json:"volumes" db:"-" bson:"volumes"`
-	Environments []string     `json:"environments" db:"-" bson:"environments"`
-	Networks     []string     `json:"networks" db:"-" bson:"networks"`
-	Deploy       Deploy       `json:"deploy" db:"-" bson:"deploy"`
+	Image        string          `json:"image" db:"-" bson:"image"`
+	Ports        []PortInfo      `json:"ports" db:"-" bson:"ports"`
+	Volumes      []VolumeInfo    `json:"volumes" db:"-" bson:"volumes"`
+	Environments []string        `json:"environments" db:"-" bson:"environments"`
+	Networks     []string        `json:"networks" db:"-" bson:"networks"`
+	Deploy       Deploy          `json:"deploy" db:"-" bson:"deploy"`
+	Configs      []ServiceConfig `json:"configs" db:"-" bson:"configs"`
 }
 
 type Service struct {
@@ -101,6 +102,11 @@ type Deploy struct {
 	UpdateConfig  UpdateConfig  `json:"update_config"`
 	RestartPolicy RestartPolicy `json:"restart_policy" bson:"restart_policy"`
 	Constraints   []string      `json:"constraints" bson:"constraints"`
+}
+
+type ServiceConfig struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
 }
 
 type ServiceFilterOptions struct {

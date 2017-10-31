@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkResource) swarm.ServiceSpec {
+func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkResource, swarmConfigs []swarm.Config) swarm.ServiceSpec {
 	if len(target.Spec.Deploy.UpdateConfig.Order) == 0 {
 		target.Spec.Deploy.UpdateConfig.Order = "stop-first"
 	}
@@ -119,6 +120,35 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 	for _, placement := range target.Spec.Deploy.Constraints {
 		spec.TaskTemplate.Placement.Constraints = append(spec.TaskTemplate.Placement.Constraints, placement)
 	}
+
+	// config
+	configRegs := []*swarm.ConfigReference{}
+	for _, config := range target.Spec.Configs {
+		fileTarget := swarm.ConfigReferenceFileTarget{
+			Name: config.Target,
+			UID:  "0",
+			GID:  "0",
+			Mode: os.FileMode(0444),
+		}
+
+		// ConfigID and ConfigName are mandatory, we have invalid references without them
+		configID := ""
+		for _, swarmConfig := range swarmConfigs {
+			if swarmConfig.Spec.Name == config.Source {
+				configID = swarmConfig.ID
+				break
+			}
+		}
+
+		configRef := swarm.ConfigReference{
+			File:       &fileTarget,
+			ConfigName: config.Source,
+			ConfigID:   configID,
+		}
+
+		configRegs = append(configRegs, &configRef)
+	}
+	spec.TaskTemplate.ContainerSpec.Configs = configRegs
 
 	return spec
 }
@@ -399,13 +429,17 @@ func (m *ServiceManager) Redeploy(ctx context.Context, id string) error {
 	networkOpts := dockerTypes.NetworkListOptions{}
 	networkList, err := m.client.NetworkList(ctx, networkOpts)
 
+	// get docker config
+	configOpts := dockerTypes.ConfigListOptions{}
+	configList, err := m.client.ConfigList(ctx, configOpts)
+
 	// get service
 	service, err := m.ServiceGetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	dockerSvcSpec := newDockerServiceSpec(service, networkList)
+	dockerSvcSpec := newDockerServiceSpec(service, networkList, configList)
 
 	// get old spec
 	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}
