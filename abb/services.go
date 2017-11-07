@@ -612,6 +612,7 @@ func (repo *serviceDAO) Find(ctx context.Context, opts types.ServiceFilterOption
 		log.Errorf("service: prepare sql fail: %v", err)
 		return nil, err
 	}
+	defer findServiceSQLStmt.Close()
 
 	err = findServiceSQLStmt.Select(&services, param)
 	if err != nil {
