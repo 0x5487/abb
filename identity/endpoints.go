@@ -34,8 +34,10 @@ func NewPrivateIdentityRouter() *napnap.Router {
 	router.Post("/v1/users/:id/roles", updateUserRoleEndpoint)
 
 	// roles
+	router.Get("/v1/roles/:name", roleGetEndpoint)
+	router.Put("/v1/roles/:name", roleUpdateEndpoint)
 	router.Get("/v1/roles", getRolesEndpoint)
-	router.Get("/v1/roles/:id", getRoleByIDEndpoint)
+	router.Post("/v1/roles", createRolesEndpoint)
 
 	return router
 }
@@ -175,7 +177,7 @@ func getRolesEndpoint(c *napnap.Context) {
 	c.JSON(200, roles)
 
 }
-func getRoleByIDEndpoint(c *napnap.Context) {
+func roleGetEndpoint(c *napnap.Context) {
 	ctx := c.StdContext()
 	// claim, found := FromContext(ctx)
 	// if !found {
@@ -187,11 +189,8 @@ func getRoleByIDEndpoint(c *napnap.Context) {
 	// 	c.SetStatus(403)
 	// 	return
 	// }
-	roleid, err := c.ParamInt("id")
-	if err != nil {
-		panic(err)
-	}
-	role, err := _membershipSvc.GetRoleByID(ctx, roleid)
+	roleName := c.Param("name")
+	role, err := _membershipSvc.GetRoleByName(ctx, roleName)
 	if err != nil {
 		panic(err)
 	}
@@ -310,20 +309,19 @@ func createRolesEndpoint(c *napnap.Context) {
 	// 	c.SetStatus(403)
 	// 	return
 	// }
-	var er EditRole
-	err := c.BindJSON(&er)
+	var role Role
+	err := c.BindJSON(&role)
 	if err != nil {
 		panic(err)
 	}
-	err = _membershipSvc.CreateRole(ctx, er)
+	err = _membershipSvc.CreateRole(ctx, &role)
 	if err != nil {
 		panic(err)
 	}
-	c.SetStatus(200)
-
+	c.JSON(201, role)
 }
 
-func updateRolesEndpoint(c *napnap.Context) {
+func roleUpdateEndpoint(c *napnap.Context) {
 	ctx := c.StdContext()
 	// claim, found := FromContext(ctx)
 	// if !found {
@@ -335,21 +333,26 @@ func updateRolesEndpoint(c *napnap.Context) {
 	// 	c.SetStatus(403)
 	// 	return
 	// }
-	roleID, err := c.ParamInt("id")
+	roleName := c.Param("name")
+
+	role, err := _membershipSvc.GetRoleByName(ctx, roleName)
 	if err != nil {
 		panic(err)
 	}
-	var er EditRole
-	err = c.BindJSON(&er)
+	if role == nil {
+		panic(app.AppError{ErrorCode: "not_found", Message: "role not found"})
+	}
+
+	err = c.BindJSON(role)
 	if err != nil {
 		panic(err)
 	}
-	er.ID = roleID
-	err = _membershipSvc.UpdateRole(ctx, er)
+
+	err = _membershipSvc.UpdateRole(ctx, roleName, role)
 	if err != nil {
 		panic(err)
 	}
-	c.SetStatus(200)
+	c.JSON(200, role)
 
 }
 

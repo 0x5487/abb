@@ -2,7 +2,6 @@ package identity
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -172,102 +171,38 @@ type EditRole struct {
 	ModuleList []int  `json:"module_list"`
 }
 
-func (ms *MembershipService) CreateRole(ctx context.Context, role EditRole) error {
+func (ms *MembershipService) CreateRole(ctx context.Context, role *Role) error {
 	log := xlog.FromContext(ctx)
 	// c, found := napnap.FromContext(ctx)
 	// currentUser, _ := FromContext(ctx)
 	nowUTC := time.Now().UTC()
-	// eventlog := &cmaudit.Eventlog{
-	// 	Username:   currentUser.Username,
-	// 	ModuleCode: "role.mgmt",
-	// 	Type:       1,
-	// 	Message:    "新增角色成功: " + role.Name,
-	// }
-	// if found {
-	// 	eventlog.ClientIP = c.RemoteIPAddress()
-	// }
-	tx, err := ms.db.Beginx()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	_role, err := _roleRepo.GetRoleByName(ctx, role.Name)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if _role != nil {
-		apperr := app.AppError{ErrorCode: "invalid_input", Message: "rolename field is invalid"}
-		return apperr
-	}
-	roles := Role{Name: role.Name, CreatedAt: &nowUTC, UpdatedAt: &nowUTC}
-	err = _roleRepo.AddRoles(ctx, &roles, tx)
-	if err != nil {
-		//eventlog.Message = "新增角色失败"
-		//_auditSvc.CreateEventLog(ctx, eventlog)
-		return err
-	}
-	// for _, m := range role.ModuleList {
-	// 	err = _modulesRepo.AddModuleByRole(ctx, roles.ID, m, tx)
-	// 	if err != nil {
-	// 		eventlog.Message = "新增角色失败"
-	// 		//_auditSvc.CreateEventLog(ctx, eventlog)
-	// 		return err
-	// 	}
-	// }
-	err = tx.Commit()
+	role.CreatedAt = &nowUTC
+	role.UpdatedAt = &nowUTC
+
+	err := _roleRepo.InsertRole(ctx, role)
 	if err != nil {
 		log.Errorf("membership: create role fail: %v", err)
 		return err
 	}
-	//_auditSvc.CreateEventLog(ctx, eventlog)
+
 	return nil
 }
 
-func (ms *MembershipService) UpdateRole(ctx context.Context, role EditRole) error {
+func (ms *MembershipService) UpdateRole(ctx context.Context, originalName string, role *Role) error {
 	log := xlog.FromContext(ctx)
 	// c, found := napnap.FromContext(ctx)
 	// currentUser, _ := FromContext(ctx)
-	// eventlog := &cmaudit.Eventlog{
-	// 	Username:   currentUser.Username,
-	// 	ModuleCode: "role.mgmt",
-	// 	Type:       2,
-	// 	Message:    "修改角色成功: " + role.Name,
-	// }
-	// if found {
-	// 	eventlog.ClientIP = c.RemoteIPAddress()
-	// }
-	tx, err := ms.db.Beginx()
+
+	err := _roleRepo.UpdateRole(ctx, originalName, role)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	roles := Role{Name: role.Name, ID: role.ID}
-	err = _roleRepo.UpdateRole(ctx, &roles, tx)
-	if err != nil {
-		//eventlog.Message = "修改角色失败"
-		//_auditSvc.CreateEventLog(ctx, eventlog)
-		return err
-	}
-	// err = _modulesRepo.DeleteModuleByRole(ctx, roles.ID, tx)
-	// if err != nil {
-	// 	eventlog.Message = "修改角色失败"
-	// 	//_auditSvc.CreateEventLog(ctx, eventlog)
-	// 	return err
-	// }
-	// for _, m := range role.ModuleList {
-	// 	err = _modulesRepo.AddModuleByRole(ctx, roles.ID, m, tx)
-	// 	if err != nil {
-	// 		eventlog.Message = "修改角色失敗"
-	// 		//_auditSvc.CreateEventLog(ctx, eventlog)
-	// 		return err
-	// 	}
-	// }
-	err = tx.Commit()
+
 	if err != nil {
 		log.Errorf("membership: create user fail: %v", err)
 		return err
 	}
-	//_auditSvc.CreateEventLog(ctx, eventlog)
+
 	return nil
 }
 
@@ -331,7 +266,8 @@ func (ms *MembershipService) CreateUser(ctx context.Context, user *User) error {
 	user.Password = ""
 
 	// insert roles
-	roles, err := _roleRepo.GetRoles(ctx)
+	opts := FindRolesOptions{}
+	roles, err := _roleRepo.FindRoles(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -437,6 +373,15 @@ func (ms *MembershipService) GenerateToken(ctx context.Context, userID int) (*Au
 		return nil, err
 	}
 
+	var roles []*Role
+	for _, roleName := range user.Roles {
+		role, err := ms.GetRoleByName(ctx, roleName)
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	exp := time.Now().UTC().Add(time.Duration(ms.config.Jwt.DurationInMin) * time.Minute).Unix()
@@ -444,7 +389,7 @@ func (ms *MembershipService) GenerateToken(ctx context.Context, userID int) (*Au
 		"exp":     exp,
 		"sub":     user.Username,
 		"user_id": user.ID,
-		"roles":   user.Roles,
+		"roles":   roles,
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
@@ -490,24 +435,28 @@ func (ms *MembershipService) GetUserCount(ctx context.Context, opt UserOption) (
 	return total, nil
 }
 func (ms *MembershipService) GetRoles(ctx context.Context) ([]*Role, error) {
-	roles, err := _roleRepo.GetRoles(ctx)
+	opts := FindRolesOptions{}
+	roles, err := _roleRepo.FindRoles(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	return roles, nil
 }
-func (ms *MembershipService) GetRoleByID(ctx context.Context, roleID int) (*EditRole, error) {
-	// role, err := _roleRepo.GetRoleByID(ctx, roleID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// moduleList, err := _modulesRepo.GetModulesByRole(ctx, roleID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// reuslt := EditRole{ID: role.ID, Name: role.Name, ModuleList: moduleList}
-	// return &reuslt, nil
-	return nil, nil
+func (ms *MembershipService) GetRoleByName(ctx context.Context, name string) (*Role, error) {
+	opts := FindRolesOptions{
+		Name: name,
+	}
+
+	roles, err := _roleRepo.FindRoles(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(roles) == 0 {
+		return nil, nil
+	}
+
+	return roles[0], nil
 }
 func (ms *MembershipService) GetUsers(ctx context.Context, opt UserOption) ([]*User, error) {
 	log := xlog.FromContext(ctx)

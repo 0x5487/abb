@@ -32,13 +32,18 @@ func newTaskManager(cluster *types.Cluster) (types.TaskService, error) {
 }
 
 func newTaskFromSwarmTask(target swarm.Task) types.Task {
+	msg := target.Status.Message
+	if len(target.Status.Err) > 0 {
+		msg = target.Status.Err
+	}
+
 	return types.Task{
 		ID:   target.ID,
 		Slot: target.Slot,
 		Status: types.TaskStatus{
 			TimeStamp: target.Status.Timestamp,
-			Error:     target.Status.Err,
 			State:     string(target.Status.State),
+			Message:   msg,
 		},
 	}
 }

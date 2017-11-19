@@ -41,9 +41,9 @@ type ServiceSpec struct {
 	Ports        []PortInfo      `json:"ports" db:"-" bson:"ports"`
 	Volumes      []VolumeInfo    `json:"volumes" db:"-" bson:"volumes"`
 	Environments []string        `json:"environments" db:"-" bson:"environments"`
+	Configs      []ServiceConfig `json:"configs" db:"-" bson:"configs"`
 	Networks     []string        `json:"networks" db:"-" bson:"networks"`
 	Deploy       Deploy          `json:"deploy" db:"-" bson:"deploy"`
-	Configs      []ServiceConfig `json:"configs" db:"-" bson:"configs"`
 }
 
 type Service struct {

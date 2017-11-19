@@ -10,7 +10,7 @@ import (
 type TaskStatus struct {
 	TimeStamp time.Time `json:"timestamp"`
 	State     string    `json:"state"`
-	Error     string    `json:"error"`
+	Message   string    `json:"message"`
 }
 
 type Task struct {

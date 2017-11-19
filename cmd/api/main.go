@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -34,7 +35,7 @@ func main() {
 
 	// set up the napnap
 	stopChan := make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt, os.Kill)
+	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGTERM)
 	nap := napnap.New()
 	nap.Use(napnap.NewHealth())
 

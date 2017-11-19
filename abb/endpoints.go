@@ -1,12 +1,14 @@
 package abb
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/identity"
 	"github.com/jasonsoft/abb/types"
 	"github.com/jasonsoft/go-audit"
+	"github.com/jasonsoft/log"
 	"github.com/jasonsoft/napnap"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -63,6 +65,52 @@ func configGetEndpoint(c *napnap.Context) {
 	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
 	if err != nil {
 		panic(err)
+	}
+
+	// check permission
+	claims, found := identity.FromContext(ctx)
+	if found == false {
+		appError := app.AppError{ErrorCode: "invalid_input", Message: "user not found."}
+		panic(appError)
+	}
+	roles := claims["roles"]
+
+	slicB, err := json.Marshal(roles)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRoles []*identity.Role
+	err = json.Unmarshal(slicB, &newRoles)
+	if err != nil {
+		panic(err)
+	}
+
+	isValid := false
+	for _, role := range newRoles {
+		for _, rule := range role.Rules {
+			if rule.Namespace != "*" && rule.Namespace != clusterName {
+				continue
+			}
+
+			for _, res := range rule.Resources {
+				if res != "*" && res != "configs" {
+					continue
+				}
+
+				for _, verb := range rule.Verbs {
+					if verb == "*" || verb == "get" {
+						log.Debugf("rule: %v", rule)
+						isValid = true
+					}
+				}
+			}
+		}
+	}
+
+	if isValid == false {
+		c.SetStatus(403)
+		return
 	}
 
 	configID := c.Param("config_id")
@@ -167,6 +215,52 @@ func configListEndpoint(c *napnap.Context) {
 	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
 	if err != nil {
 		panic(err)
+	}
+
+	// check permission
+	claims, found := identity.FromContext(ctx)
+	if found == false {
+		appError := app.AppError{ErrorCode: "invalid_input", Message: "user not found."}
+		panic(appError)
+	}
+	roles := claims["roles"]
+
+	slicB, err := json.Marshal(roles)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRoles []*identity.Role
+	err = json.Unmarshal(slicB, &newRoles)
+	if err != nil {
+		panic(err)
+	}
+
+	isValid := false
+	for _, role := range newRoles {
+		for _, rule := range role.Rules {
+			if rule.Namespace != "*" && rule.Namespace != clusterName {
+				continue
+			}
+
+			for _, res := range rule.Resources {
+				if res != "*" && res != "configs" {
+					continue
+				}
+
+				for _, verb := range rule.Verbs {
+					if verb == "*" || verb == "list" {
+						log.Debugf("rule: %v", rule)
+						isValid = true
+					}
+				}
+			}
+		}
+	}
+
+	if isValid == false {
+		c.SetStatus(403)
+		return
 	}
 
 	configManager, err := newConfigManager(cluster)

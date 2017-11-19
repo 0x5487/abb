@@ -2,17 +2,28 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	xlog "github.com/jasonsoft/log"
 	"github.com/jmoiron/sqlx"
+	sqlxTypes "github.com/jmoiron/sqlx/types"
 )
 
 type Role struct {
-	ID        int        `db:"id"`
-	Name      string     `db:"name"`
-	CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
+	ID        int                `json:"id" db:"id"`
+	Name      string             `json:"name" db:"name"`
+	Rules     []Rule             `json:"rules" db:"-"`
+	RulesJSON sqlxTypes.JSONText `json:"-" db:"rulesJSON"`
+	CreatedAt *time.Time         `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt *time.Time         `json:"updated_at" db:"updated_at"`
+}
+
+type Rule struct {
+	Namespace     string   `json:"namespace"`
+	Resources     []string `json:"resources"`
+	ResourceNames []string `json:"resource_names"`
+	Verbs         []string `json:"verbs"`
 }
 
 type RoleRepo struct {
@@ -25,23 +36,46 @@ func NewRoleRepo(db *sqlx.DB) *RoleRepo {
 	}
 }
 
-const (
-	getRolesSQL = "SELECT * FROM roles"
-)
+const getRolesSQL = "SELECT roles.id, roles.`name`, roles.rulesJSON, roles.created_at, roles.updated_at FROM roles where 1=1"
 
-func (repo *RoleRepo) GetRoles(ctx context.Context) ([]*Role, error) {
+type FindRolesOptions struct {
+	Name string
+}
+
+func (repo *RoleRepo) FindRoles(ctx context.Context, opts FindRolesOptions) ([]*Role, error) {
 	log := xlog.FromContext(ctx)
+
+	findRolesSQL := getRolesSQL
+	param := map[string]interface{}{}
+	if len(opts.Name) > 0 {
+		findRolesSQL += " And name=:name"
+		xlog.Debugf("roles: find role: name: %s", opts.Name)
+		param["name"] = opts.Name
+	}
+
 	var roles []*Role
-	err := repo.db.Select(&roles, getRolesSQL)
+	findRolesSQLStmt, err := repo.db.PrepareNamed(findRolesSQL)
+	if err != nil {
+		log.Errorf("roles: prepare sql fail: %v", err)
+		return nil, err
+	}
+	defer findRolesSQLStmt.Close()
+
+	err = findRolesSQLStmt.Select(&roles, param)
 	if err != nil {
 		log.Errorf("membership: get roles fail: %v", err)
 	}
+
+	for _, role := range roles {
+		if err := json.Unmarshal(role.RulesJSON, &role.Rules); err != nil {
+			return nil, err
+		}
+	}
+
 	return roles, nil
 }
 
-const (
-	getRoleByNameSQL = "SELECT * FROM roles WHERE roles.name = :role_name"
-)
+const getRoleByNameSQL = "SELECT roles.id, roles.`name`, roles.rulesJSON, roles.created_at, roles.updated_at FROM roles WHERE roles.name = :role_name"
 
 func (repo *RoleRepo) GetRoleByName(ctx context.Context, roleName string) (*Role, error) {
 	log := xlog.FromContext(ctx)
@@ -52,6 +86,7 @@ func (repo *RoleRepo) GetRoleByName(ctx context.Context, roleName string) (*Role
 		return nil, err
 	}
 	defer getRoleByNameStmt.Close()
+
 	var role Role
 	m := map[string]interface{}{
 		"role_name": roleName,
@@ -62,11 +97,16 @@ func (repo *RoleRepo) GetRoleByName(ctx context.Context, roleName string) (*Role
 		log.Errorf("membership: get roles by id fail: %v", err)
 		return nil, err
 	}
+
+	if err = json.Unmarshal(role.RulesJSON, &role.Rules); err != nil {
+		return nil, err
+	}
+
 	return &role, nil
 }
 
 const (
-	getRoleByIDSQL = "SELECT * FROM roles WHERE roles.id = :role_id"
+	getRoleByIDSQL = "SELECT roles.id,	roles.`name`, roles.rulesJSON, roles.created_at, roles.updated_at FROM roles WHERE roles.id = :role_id"
 )
 
 func (repo *RoleRepo) GetRoleByID(ctx context.Context, roleID int) (*Role, error) {
@@ -112,14 +152,20 @@ func (repo *RoleRepo) AddUserToRole(ctx context.Context, userID int, roleID int,
 	return nil
 }
 
-const insertRoleSQL = `INSERT INTO roles (name, created_at,	updated_at)	VALUES (:name,:created_at,:updated_at);`
+const insertRoleSQL = `INSERT INTO roles (name, rulesJSON, created_at,	updated_at)	VALUES (:name, :rulesJSON, :created_at,:updated_at);`
 
-func (repo *RoleRepo) AddRoles(ctx context.Context, entity *Role, tx *sqlx.Tx) error {
+func (repo *RoleRepo) InsertRole(ctx context.Context, entity *Role) error {
 	log := xlog.FromContext(ctx)
 
-	sqlResult, err := tx.NamedExec(insertRoleSQL, entity)
+	strB, err := json.Marshal(entity.Rules)
 	if err != nil {
-		log.Errorf("membership: insert user role fail: %v", err)
+		return err
+	}
+	entity.RulesJSON = strB
+
+	sqlResult, err := repo.db.NamedExec(insertRoleSQL, entity)
+	if err != nil {
+		log.Errorf("membership: insert role fail: %v", err)
 		return err
 	}
 	lastID, err := sqlResult.LastInsertId()
@@ -153,13 +199,27 @@ func (repo *RoleRepo) GetRolesByUser(ctx context.Context, userID int) ([]string,
 	return rn, nil
 }
 
-const updateRoleSQL = "UPDATE `roles` SET `name` = :name, `updated_at` = :updated_at WHERE `id` = :id"
+const updateRoleSQL = "UPDATE `roles` SET `name` = :name, rulesJSON = :rulesJSON, `updated_at` = :updated_at WHERE `name` = :original_name"
 
-func (repo *RoleRepo) UpdateRole(ctx context.Context, entity *Role, tx *sqlx.Tx) error {
+func (repo *RoleRepo) UpdateRole(ctx context.Context, originalName string, entity *Role) error {
 	log := xlog.FromContext(ctx)
 	nowUTC := time.Now().UTC()
 	entity.UpdatedAt = &nowUTC
-	_, err := tx.NamedExec(updateRoleSQL, entity)
+
+	strB, err := json.Marshal(entity.Rules)
+	if err != nil {
+		return err
+	}
+	entity.RulesJSON = strB
+
+	m := map[string]interface{}{
+		"original_name": originalName,
+		"name":          entity.Name,
+		"rulesJSON":     entity.RulesJSON,
+		"updated_at":    entity.UpdatedAt,
+	}
+
+	_, err = repo.db.NamedExec(updateRoleSQL, m)
 	if err != nil {
 		log.Errorf("membership: update role fail: %v", err)
 		return err
