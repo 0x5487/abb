@@ -51,7 +51,113 @@ func NewAbbRouter() *napnap.Router {
 	router.Post("/v1/clusters/:cluster_name/configs", configCreateEndpoint)
 	router.Delete("/v1/clusters/:cluster_name/configs/:config_id", configDeleteEndpoint)
 
+	// health
+	router.Get("/v1/clusters/:cluster_name/healthcheck", healthCheckListEndpoint)
+	router.Get("/v1/clusters/:cluster_name/healthcheck/:health_id", healthCheckGetEndpoint)
+	router.Post("/v1/clusters/:cluster_name/healthcheck", healthCheckCreateEndpoint)
+	router.Delete("/v1/clusters/:cluster_name/healthcheck/:health_id", healthCheckDeleteEndpoint)
+
 	return router
+}
+
+func healthCheckListEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+	pagination := app.GetPaginationFromContext(c)
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+	if cluster == nil {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster was not found"})
+	}
+
+	manager, err := NewHealthCheckerManager(cluster, _healthCheckRepo)
+	if err != nil {
+		panic(err)
+	}
+
+	opts := types.HealthCheckFilterOptions{
+		ClusterID: cluster.ID,
+		IsEnabled: -1,
+	}
+	list, err := manager.List(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(list) == 0 {
+		list = []*types.HealthCheck{}
+	}
+
+	pagination.SetTotalCount(len(list))
+	apiResult := app.ApiPagiationResult{
+		Pagination: pagination,
+		Data:       list,
+	}
+
+	c.JSON(200, apiResult)
+}
+
+func healthCheckGetEndpoint(c *napnap.Context) {
+	log.Debug("begin health get")
+}
+
+func healthCheckCreateEndpoint(c *napnap.Context) {
+	ctx := c.StdContext()
+
+	clusterName := c.Param("cluster_name")
+	if len(clusterName) <= 0 {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster_name parameter was invalid"})
+	}
+
+	cluster, err := _clusterManager.ClusterByName(ctx, clusterName)
+	if err != nil {
+		panic(err)
+	}
+	if cluster == nil {
+		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster was not found"})
+	}
+
+	manager, err := NewHealthCheckerManager(cluster, _healthCheckRepo)
+	if err != nil {
+		panic(err)
+	}
+
+	var healthCheck types.HealthCheck
+	err = c.BindJSON(&healthCheck)
+	if err != nil {
+		panic(err)
+	}
+
+	healthCheck.ClusterID = cluster.ID
+	err = manager.Create(ctx, &healthCheck)
+	if err != nil {
+		panic(err)
+	}
+
+	// audit the action
+	claims, _ := identity.FromContext(ctx)
+	actor := claims["sub"].(string)
+	namespace := fmt.Sprintf("%s.healthcheck", clusterName)
+	event := &audit.Event{
+		Namespace: namespace,
+		TargetID:  healthCheck.Name,
+		Actor:     actor,
+		Action:    "create",
+		State:     audit.SUCCESS,
+	}
+	audit.Log(event)
+	c.JSON(201, healthCheck)
+}
+
+func healthCheckDeleteEndpoint(c *napnap.Context) {
+
 }
 
 func configGetEndpoint(c *napnap.Context) {

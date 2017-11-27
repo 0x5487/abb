@@ -14,7 +14,8 @@ var (
 	_clusterManager types.ClusterService
 
 	// repository
-	_serviceRepo types.ServiceRepository
+	_serviceRepo     types.ServiceRepository
+	_healthCheckRepo types.HealthCheckerRepository
 
 	_mongoSession *mgo.Session
 )
@@ -34,7 +35,7 @@ func init() {
 		_clusterManager = NewClusterManager(clusterRepo)
 
 		_serviceRepo = newServiceDAO(dbx)
-
+		_healthCheckRepo = newHealthChecker(dbx)
 	case "mongo":
 		_mongoSession, err = mgo.Dial(_config.Database.ConnectionString)
 		if err != nil {
@@ -52,5 +53,4 @@ func init() {
 			panic(err)
 		}
 	}
-
 }
