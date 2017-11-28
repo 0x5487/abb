@@ -92,6 +92,15 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 		}
 	}
 
+	// endpoint mode
+	if strings.EqualFold(target.Spec.Deploy.EndpointMode, "dnsrr") {
+		// dnsrr mode
+		spec.EndpointSpec.Mode = swarm.ResolutionModeDNSRR
+	} else {
+		// vip mode
+		spec.EndpointSpec.Mode = swarm.ResolutionModeVIP
+	}
+
 	// ports
 	for _, port := range target.Spec.Ports {
 		portConfig := swarm.PortConfig{

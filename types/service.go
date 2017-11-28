@@ -99,6 +99,7 @@ type UpdateConfig struct {
 type Deploy struct {
 	Mode          string        `json:"mode" bson:"mode"`
 	Replicas      uint64        `json:"replicas" bson:"replicas"`
+	EndpointMode  string        `json:"endpoint_mode"`
 	UpdateConfig  UpdateConfig  `json:"update_config"`
 	RestartPolicy RestartPolicy `json:"restart_policy" bson:"restart_policy"`
 	Constraints   []string      `json:"constraints" bson:"constraints"`

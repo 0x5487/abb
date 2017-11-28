@@ -31,6 +31,7 @@ type HealthCheckManager struct {
 
 func (m *HealthCheckManager) Create(ctx context.Context, entity *types.HealthCheck) error {
 	entity.ID = uuid.NewV4().String()
+	entity.URL = strings.TrimSpace(entity.URL)
 	return m.repo.Insert(ctx, entity)
 }
 
@@ -158,10 +159,11 @@ func EnableHealthCheck() {
 	}
 
 	for _, val := range list {
-		func(h types.HealthCheck) {
+		go func(h types.HealthCheck) {
 			ticker := time.NewTicker(time.Duration(h.Interval) * time.Second)
 			failedCount := 0
 			for _ = range ticker.C {
+				log.Debugf("healthcheck: %s", h.Name)
 				resp, err := request.
 					GET(h.URL).
 					End()
@@ -173,12 +175,14 @@ func EnableHealthCheck() {
 
 				if resp != nil && resp.OK {
 					failedCount = 0
+				} else {
+					failedCount++
 				}
 
 				if h.IsHealth && failedCount >= 3 {
 					// fail
 					h.IsHealth = false
-					msg := fmt.Sprintf("%s is not health", h.Name)
+					msg := fmt.Sprintf("%s is not health !!!!!", h.Name)
 					log.Info(msg)
 					_slack.SendMessage(_slack.NewOutgoingMessage(msg, GetGroupIDByName(_slack)[_config.Slack.ChannelName]))
 				}

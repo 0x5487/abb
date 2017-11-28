@@ -59,6 +59,10 @@ func init() {
 			Jwt: JwtConfig{
 				SecretKey: os.Getenv("ABB_JWT_SECRET_KEY"),
 			},
+			Slack: Slack{
+				Token:       os.Getenv("ABB_SLACK_TOKEN"),
+				ChannelName: os.Getenv("ABB_SLACK_CHANNEL_NAME"),
+			},
 		}
 
 		dInMinStr := os.Getenv("ABB_JWT_DURATION_IN_MIN")
