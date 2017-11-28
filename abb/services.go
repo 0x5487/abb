@@ -263,7 +263,7 @@ func (m *ServiceManager) ServiceRawByID(ctx context.Context, id string) (*swarm.
 	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}
 	dockerSvc, _, err := m.client.ServiceInspectWithRaw(ctx, service.Name, serviceInspectOptions)
 	if err != nil {
-		if client.IsErrServiceNotFound(err) {
+		if client.IsErrNotFound(err) {
 			return nil, app.AppError{ErrorCode: "not_found", Message: "service raw was not found"}
 		}
 		logger.Errorf("abb: get service error: %v", err)
@@ -445,7 +445,7 @@ func (m *ServiceManager) Redeploy(ctx context.Context, id string) error {
 	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}
 	dockerOldSvc, _, err := m.client.ServiceInspectWithRaw(ctx, service.Name, serviceInspectOptions)
 	if err != nil {
-		if client.IsErrServiceNotFound(err) {
+		if client.IsErrNotFound(err) {
 			// create new docker service
 			createOptions := dockerTypes.ServiceCreateOptions{}
 			_, err := m.client.ServiceCreate(ctx, dockerSvcSpec, createOptions)
@@ -488,7 +488,7 @@ func (m *ServiceManager) ServiceDelete(ctx context.Context, id string) error {
 
 	err = dockerClient.ServiceRemove(ctx, service.Name)
 	if err != nil {
-		if !client.IsErrServiceNotFound(err) {
+		if !client.IsErrNotFound(err) {
 			logger.Errorf("abb: delete service error: %v", err)
 			return err
 		}

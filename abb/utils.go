@@ -1,8 +1,11 @@
 package abb
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/jasonsoft/abb/types"
+	"github.com/nlopes/slack"
 )
 
 func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) map[string]types.DeploymentStatus {
@@ -55,4 +58,19 @@ func getServicesStatus(services []swarm.Service, nodes []swarm.Node, tasks []swa
 		}
 	}
 	return info
+}
+
+func GetGroupIDByName(api *slack.RTM) map[string]string {
+	result := map[string]string{}
+	groups, err := api.GetGroups(false)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return nil
+	}
+	for _, group := range groups {
+		fmt.Printf("ID: %s, Name: %s\n", group.ID, group.Name)
+		result[group.Name] = group.ID
+	}
+
+	return result
 }

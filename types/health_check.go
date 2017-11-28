@@ -14,7 +14,7 @@ type HealthCheck struct {
 	Timeout   int        `json:"timeout" db:"timeout"`
 	Retries   int        `json:"retries" db:"retries"`
 	IsEnabled int        `json:"is_enabled" db:"is_enabled"`
-	IsHealth  bool       `json:"is_health" db:"-"`
+	IsHealth  bool       `json:"-" db:"-"`
 	CreatedAt *time.Time `json:"created_at" db:"created_at" bson:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at" bson:"updated_at"`
 }

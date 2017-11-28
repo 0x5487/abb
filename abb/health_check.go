@@ -2,6 +2,7 @@ package abb
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/types"
 	"github.com/jasonsoft/log"
+	"github.com/jasonsoft/request"
 	"github.com/jmoiron/sqlx"
 	uuid "github.com/satori/go.uuid"
 )
@@ -17,7 +19,7 @@ import (
 // Business
 // ************************
 
-func NewHealthCheckerManager(cluster *types.Cluster, repo types.HealthCheckerRepository) (types.HealthChecker, error) {
+func NewHealthCheckerManager(repo types.HealthCheckerRepository) (types.HealthChecker, error) {
 	return &HealthCheckManager{
 		repo: repo,
 	}, nil
@@ -136,5 +138,60 @@ func (repo *HealthCheckDAO) FindOne(ctx context.Context, opts types.HealthCheckF
 
 func EnableHealthCheck() {
 	// get all healthcheck rules
+	ctx := context.Background()
+	manager, err := NewHealthCheckerManager(_healthCheckRepo)
+	if err != nil {
+		panic(err)
+	}
+
+	opts := types.HealthCheckFilterOptions{
+		IsEnabled: 1,
+	}
+
+	list, err := manager.List(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(list) == 0 {
+		return
+	}
+
+	for _, val := range list {
+		func(h types.HealthCheck) {
+			ticker := time.NewTicker(time.Duration(h.Interval) * time.Second)
+			failedCount := 0
+			for _ = range ticker.C {
+				resp, err := request.
+					GET(h.URL).
+					End()
+
+				if err != nil {
+					log.Errorf("abb: healthcheck failed: %s, err: %v", h.Name, err)
+					failedCount++
+				}
+
+				if resp != nil && resp.OK {
+					failedCount = 0
+				}
+
+				if h.IsHealth && failedCount >= 3 {
+					// fail
+					h.IsHealth = false
+					msg := fmt.Sprintf("%s is not health", h.Name)
+					log.Info(msg)
+					_slack.SendMessage(_slack.NewOutgoingMessage(msg, GetGroupIDByName(_slack)[_config.Slack.ChannelName]))
+				}
+
+				if h.IsHealth == false && failedCount == 0 {
+					// success
+					h.IsHealth = true
+					msg := fmt.Sprintf("%s is health", h.Name)
+					log.Info(msg)
+					_slack.SendMessage(_slack.NewOutgoingMessage(msg, GetGroupIDByName(_slack)[_config.Slack.ChannelName]))
+				}
+			}
+		}(*val)
+	}
 
 }

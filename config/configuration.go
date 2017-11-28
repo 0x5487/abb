@@ -9,10 +9,16 @@ type Database struct {
 	DBName           string
 }
 
+type Slack struct {
+	Token       string `yaml:"token"`
+	ChannelName string `yaml:"channel_name"`
+}
+
 type Configuration struct {
 	Database Database
 	Logs     []LogTarget `yaml:"logs"`
 	Jwt      JwtConfig
+	Slack    Slack `yaml:"slack"`
 }
 
 type LogTarget struct {

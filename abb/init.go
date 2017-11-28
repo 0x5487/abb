@@ -6,12 +6,14 @@ import (
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/config"
 	"github.com/jasonsoft/abb/types"
+	"github.com/nlopes/slack"
 	mgo "gopkg.in/mgo.v2"
 )
 
 var (
 	_config         *config.Configuration
 	_clusterManager types.ClusterService
+	_slack          *slack.RTM
 
 	// repository
 	_serviceRepo     types.ServiceRepository
@@ -23,6 +25,12 @@ var (
 func init() {
 	_config = config.Config()
 	dbx := app.DBX
+
+	// setup slack
+	api := slack.New(_config.Slack.Token)
+	_slack = api.NewRTM()
+
+	go _slack.ManageConnection()
 
 	var err error
 

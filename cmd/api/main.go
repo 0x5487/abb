@@ -33,6 +33,8 @@ func main() {
 	// set up the log
 	log.SetAppID("abb") // unique id for the app
 
+	go abb.EnableHealthCheck()
+
 	// set up the napnap
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGTERM)

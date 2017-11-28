@@ -77,7 +77,7 @@ func healthCheckListEndpoint(c *napnap.Context) {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster was not found"})
 	}
 
-	manager, err := NewHealthCheckerManager(cluster, _healthCheckRepo)
+	manager, err := NewHealthCheckerManager(_healthCheckRepo)
 	if err != nil {
 		panic(err)
 	}
@@ -124,7 +124,7 @@ func healthCheckCreateEndpoint(c *napnap.Context) {
 		panic(app.AppError{ErrorCode: "invalid_input", Message: "cluster was not found"})
 	}
 
-	manager, err := NewHealthCheckerManager(cluster, _healthCheckRepo)
+	manager, err := NewHealthCheckerManager(_healthCheckRepo)
 	if err != nil {
 		panic(err)
 	}
