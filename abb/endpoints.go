@@ -498,20 +498,45 @@ func clusterListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	isValid := false
 	resultClusters := []*types.Cluster{}
 	for _, role := range newRoles {
 		for _, rule := range role.Rules {
-			if len(rule.Namespace) > 0 {
+			if len(rule.Namespace) > 0 && rule.Namespace != "*" {
 				continue
 			}
-			for _, resName := range rule.ResourceNames {
-				for _, cluster := range clusters {
-					if cluster.Name == resName {
-						resultClusters = append(resultClusters, cluster)
+
+			for _, verb := range rule.Verbs {
+				if verb == "*" || verb == "list" {
+					log.Debugf("rule: %v", rule)
+					isValid = true
+					break
+				}
+			}
+
+			if isValid == false {
+				break
+			}
+
+			for _, res := range rule.Resources {
+				if res != "*" && res != "clusters" {
+					continue
+				}
+				for _, resName := range rule.ResourceNames {
+					for _, cluster := range clusters {
+						if cluster.Name == resName {
+							resultClusters = append(resultClusters, cluster)
+						}
 					}
 				}
 			}
+
 		}
+	}
+
+	if isValid == false {
+		c.SetStatus(403)
+		return
 	}
 
 	pagination.SetTotalCount(len(resultClusters))
@@ -1168,6 +1193,17 @@ func serviceListEndpoint(c *napnap.Context) {
 		for _, rule := range role.Rules {
 			if rule.Namespace != "*" && rule.Namespace != clusterName {
 				continue
+			}
+
+			for _, verb := range rule.Verbs {
+				if verb == "*" || verb == "list" {
+					log.Debugf("rule: %v", rule)
+					isValid = true
+					break
+				}
+			}
+			if isValid == false {
+				break
 			}
 
 			for _, res := range rule.Resources {
