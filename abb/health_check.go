@@ -161,6 +161,7 @@ func EnableHealthCheck() {
 	for _, val := range list {
 		go func(h types.HealthCheck) {
 			ticker := time.NewTicker(time.Duration(h.Interval) * time.Second)
+			h.IsHealth = true
 			failedCount := 0
 			for _ = range ticker.C {
 				log.Debugf("healthcheck: %s", h.Name)
