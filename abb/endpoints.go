@@ -479,10 +479,45 @@ func clusterListEndpoint(c *napnap.Context) {
 		clusters = []*types.Cluster{}
 	}
 
-	pagination.SetTotalCount(len(clusters))
+	// check permission
+	claims, found := identity.FromContext(ctx)
+	if found == false {
+		appError := app.AppError{ErrorCode: "invalid_input", Message: "user not found."}
+		panic(appError)
+	}
+	roles := claims["roles"]
+
+	slicB, err := json.Marshal(roles)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRoles []*identity.Role
+	err = json.Unmarshal(slicB, &newRoles)
+	if err != nil {
+		panic(err)
+	}
+
+	resultClusters := []*types.Cluster{}
+	for _, role := range newRoles {
+		for _, rule := range role.Rules {
+			if len(rule.Namespace) > 0 {
+				continue
+			}
+			for _, resName := range rule.ResourceNames {
+				for _, cluster := range clusters {
+					if cluster.Name == resName {
+						resultClusters = append(resultClusters, cluster)
+					}
+				}
+			}
+		}
+	}
+
+	pagination.SetTotalCount(len(resultClusters))
 	apiResult := app.ApiPagiationResult{
 		Pagination: pagination,
-		Data:       clusters,
+		Data:       resultClusters,
 	}
 
 	c.JSON(200, apiResult)
