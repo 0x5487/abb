@@ -479,10 +479,66 @@ func clusterListEndpoint(c *napnap.Context) {
 		clusters = []*types.Cluster{}
 	}
 
-	pagination.SetTotalCount(len(clusters))
+	// check permission
+	claims, found := identity.FromContext(ctx)
+	if found == false {
+		appError := app.AppError{ErrorCode: "invalid_input", Message: "user not found."}
+		panic(appError)
+	}
+	roles := claims["roles"]
+
+	slicB, err := json.Marshal(roles)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRoles []*identity.Role
+	err = json.Unmarshal(slicB, &newRoles)
+	if err != nil {
+		panic(err)
+	}
+
+	isValid := false
+	resultClusters := []*types.Cluster{}
+	for _, role := range newRoles {
+		for _, rule := range role.Rules {
+			if len(rule.Namespace) > 0 && rule.Namespace != "*" {
+				continue
+			}
+
+			for _, res := range rule.Resources {
+				if res != "*" && res != "clusters" {
+					continue
+				}
+
+				for _, verb := range rule.Verbs {
+					if verb == "*" || verb == "list" {
+						log.Debugf("rule: %v", rule)
+						isValid = true
+
+						for _, resName := range rule.ResourceNames {
+							for _, cluster := range clusters {
+								if cluster.Name == resName {
+									resultClusters = append(resultClusters, cluster)
+								}
+							}
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+	if isValid == false {
+		c.SetStatus(403)
+		return
+	}
+
+	pagination.SetTotalCount(len(resultClusters))
 	apiResult := app.ApiPagiationResult{
 		Pagination: pagination,
-		Data:       clusters,
+		Data:       resultClusters,
 	}
 
 	c.JSON(200, apiResult)
@@ -1108,10 +1164,71 @@ func serviceListEndpoint(c *napnap.Context) {
 		result = []*types.Service{}
 	}
 
-	pagination.SetTotalCount(len(result))
+	// check permission
+	claims, found := identity.FromContext(ctx)
+	if found == false {
+		appError := app.AppError{ErrorCode: "invalid_input", Message: "user not found."}
+		panic(appError)
+	}
+	roles := claims["roles"]
+
+	slicB, err := json.Marshal(roles)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRoles []*identity.Role
+	err = json.Unmarshal(slicB, &newRoles)
+	if err != nil {
+		panic(err)
+	}
+
+	resultService := []*types.Service{}
+	isValid := false
+	for _, role := range newRoles {
+		for _, rule := range role.Rules {
+			if rule.Namespace != "*" && rule.Namespace != clusterName {
+				continue
+			}
+
+			for _, res := range rule.Resources {
+				if res != "*" && res != "services" {
+					continue
+				}
+
+				for _, resName := range rule.ResourceNames {
+					if resName == "*" {
+						resultService = result
+						isValid = true
+						break
+					}
+
+					for _, verb := range rule.Verbs {
+						if verb == "*" || verb == "list" {
+							log.Debugf("rule: %v", rule)
+							isValid = true
+							for _, service := range result {
+								if service.Name == resName {
+									resultService = append(resultService, service)
+									isValid = true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if isValid == false {
+		c.SetStatus(403)
+		return
+	}
+
+	pagination.SetTotalCount(len(resultService))
 	apiResult := app.ApiPagiationResult{
 		Pagination: pagination,
-		Data:       result,
+		Data:       resultService,
 	}
 
 	c.JSON(200, apiResult)
