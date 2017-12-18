@@ -6,9 +6,10 @@ import (
 )
 
 type Cluster struct {
-	ID        string     `json:"id" db:"id" bson:"_id"`
-	Name      string     `json:"name" db:"name" bson:"name"`
-	Host      string     `json:"host" db:"host" bson:"host"`
+	ID        string `json:"id" db:"id" bson:"_id"`
+	Name      string `json:"name" db:"name" bson:"name"`
+	Host      string `json:"host" db:"host" bson:"host"`
+	Index     int
 	CreatedAt *time.Time `json:"created_at" db:"created_at" bson:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at" bson:"updated_at"`
 }
