@@ -511,12 +511,17 @@ func clusterListEndpoint(c *napnap.Context) {
 					continue
 				}
 
-				for _, verb := range rule.Verbs {
-					if verb == "*" || verb == "list" {
-						log.Debugf("rule: %v", rule)
+				for _, resName := range rule.ResourceNames {
+					if resName == "*" {
+						resultClusters = clusters
 						isValid = true
+						break
+					}
 
-						for _, resName := range rule.ResourceNames {
+					for _, verb := range rule.Verbs {
+						if verb == "*" || verb == "list" {
+							log.Debugf("rule: %v", rule)
+							isValid = true
 							for _, cluster := range clusters {
 								if cluster.Name == resName {
 									resultClusters = append(resultClusters, cluster)
@@ -526,7 +531,6 @@ func clusterListEndpoint(c *napnap.Context) {
 					}
 				}
 			}
-
 		}
 	}
 
