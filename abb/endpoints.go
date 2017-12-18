@@ -544,7 +544,8 @@ func clusterListEndpoint(c *napnap.Context) {
 		return
 	}
 
-	sort.Slice(resultClusters, func(i, j int) bool { return resultClusters[i].Index < resultClusters[j].Index })
+	//Sort number from small to larger
+	sort.Slice(resultClusters, func(i, j int) bool { return resultClusters[i].Sort < resultClusters[j].Sort })
 
 	pagination.SetTotalCount(len(resultClusters))
 	apiResult := app.ApiPagiationResult{
