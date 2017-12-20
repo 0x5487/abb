@@ -115,7 +115,7 @@ func (c *ClusterDatabase) ClusterUpdate(ctx context.Context, entity *types.Clust
 	return nil
 }
 
-const clusterListSQL = "SELECT LOWER(HEX(id)) as `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters"
+const clusterListSQL = "SELECT LOWER(HEX(id)) as `id`, `name`, `host`, `created_at`, `updated_at` FROM clusters ORDER BY `sort`"
 
 func (c *ClusterDatabase) ClusterList(ctx context.Context) ([]*types.Cluster, error) {
 	logger := log.FromContext(ctx)

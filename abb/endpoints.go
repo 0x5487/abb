@@ -3,6 +3,7 @@ package abb
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/jasonsoft/abb/app"
 	"github.com/jasonsoft/abb/identity"
@@ -498,6 +499,9 @@ func clusterListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	var clustersFound map[string]bool
+	clustersFound = make(map[string]bool)
+
 	isValid := false
 	resultClusters := []*types.Cluster{}
 	for _, role := range newRoles {
@@ -511,22 +515,23 @@ func clusterListEndpoint(c *napnap.Context) {
 					continue
 				}
 
-				for _, verb := range rule.Verbs {
-					if verb == "*" || verb == "list" {
-						log.Debugf("rule: %v", rule)
-						isValid = true
-
-						for _, resName := range rule.ResourceNames {
+				for _, resName := range rule.ResourceNames {
+					for _, verb := range rule.Verbs {
+						if verb == "*" || verb == "list" {
+							log.Debugf("rule: %v", rule)
+							isValid = true
 							for _, cluster := range clusters {
-								if cluster.Name == resName {
-									resultClusters = append(resultClusters, cluster)
+								if resName == "*" || cluster.Name == resName {
+									if _, find := clustersFound[cluster.Name]; !find {
+										resultClusters = append(resultClusters, cluster)
+										clustersFound[cluster.Name] = true
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-
 		}
 	}
 
@@ -534,6 +539,9 @@ func clusterListEndpoint(c *napnap.Context) {
 		c.SetStatus(403)
 		return
 	}
+
+	//Sort number from small to larger
+	sort.Slice(resultClusters, func(i, j int) bool { return resultClusters[i].Sort < resultClusters[j].Sort })
 
 	pagination.SetTotalCount(len(resultClusters))
 	apiResult := app.ApiPagiationResult{
@@ -1183,6 +1191,9 @@ func serviceListEndpoint(c *napnap.Context) {
 		panic(err)
 	}
 
+	var serviceFound map[string]bool
+	serviceFound = make(map[string]bool)
+
 	resultService := []*types.Service{}
 	isValid := false
 	for _, role := range newRoles {
@@ -1197,20 +1208,16 @@ func serviceListEndpoint(c *napnap.Context) {
 				}
 
 				for _, resName := range rule.ResourceNames {
-					if resName == "*" {
-						resultService = result
-						isValid = true
-						break
-					}
-
 					for _, verb := range rule.Verbs {
 						if verb == "*" || verb == "list" {
 							log.Debugf("rule: %v", rule)
 							isValid = true
 							for _, service := range result {
-								if service.Name == resName {
-									resultService = append(resultService, service)
-									isValid = true
+								if resName == "*" || service.Name == resName {
+									if _, find := serviceFound[service.Name]; !find {
+										resultService = append(resultService, service)
+										serviceFound[service.Name] = true
+									}
 								}
 							}
 						}
