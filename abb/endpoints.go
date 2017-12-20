@@ -520,20 +520,12 @@ func clusterListEndpoint(c *napnap.Context) {
 						if verb == "*" || verb == "list" {
 							log.Debugf("rule: %v", rule)
 							isValid = true
-							if resName == "*" {
-								for _, cluster := range clusters {
-									if _, ok := clustersFound[cluster.Name]; !ok {
+							for _, cluster := range clusters {
+								if resName == "*" || cluster.Name == resName {
+									if _, find := clustersFound[cluster.Name]; !find {
 										resultClusters = append(resultClusters, cluster)
 										clustersFound[cluster.Name] = true
 									}
-								}
-								break
-							}
-
-							for _, cluster := range clusters {
-								if _, ok := clustersFound[resName]; !ok && cluster.Name == resName {
-									resultClusters = append(resultClusters, cluster)
-									clustersFound[resName] = true
 								}
 							}
 						}
@@ -1220,20 +1212,12 @@ func serviceListEndpoint(c *napnap.Context) {
 						if verb == "*" || verb == "list" {
 							log.Debugf("rule: %v", rule)
 							isValid = true
-							if resName == "*" {
-								for _, service := range result {
-									if _, ok := serviceFound[service.Name]; !ok {
+							for _, service := range result {
+								if resName == "*" || service.Name == resName {
+									if _, find := serviceFound[service.Name]; !find {
 										resultService = append(resultService, service)
 										serviceFound[service.Name] = true
 									}
-								}
-								break
-							}
-
-							for _, service := range result {
-								if _, ok := serviceFound[resName]; !ok && service.Name == resName {
-									resultService = append(resultService, service)
-									serviceFound[resName] = true
 								}
 							}
 						}
