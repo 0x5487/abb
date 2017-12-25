@@ -42,6 +42,7 @@ type ServiceSpec struct {
 	Volumes      []VolumeInfo    `json:"volumes" db:"-" bson:"volumes"`
 	Environments []string        `json:"environments" db:"-" bson:"environments"`
 	Configs      []ServiceConfig `json:"configs" db:"-" bson:"configs"`
+	Secrets      []ServiceSecret `json:"secrets" db:"-" bson:"secrets"`
 	Networks     []string        `json:"networks" db:"-" bson:"networks"`
 	Deploy       Deploy          `json:"deploy" db:"-" bson:"deploy"`
 }
@@ -106,6 +107,11 @@ type Deploy struct {
 }
 
 type ServiceConfig struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
+type ServiceSecret struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 }

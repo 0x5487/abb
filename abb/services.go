@@ -24,7 +24,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkResource, swarmConfigs []swarm.Config) swarm.ServiceSpec {
+func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkResource, swarmConfigs []swarm.Config, swarmSecrets []swarm.Secret) swarm.ServiceSpec {
 	if len(target.Spec.Deploy.UpdateConfig.Order) == 0 {
 		target.Spec.Deploy.UpdateConfig.Order = "stop-first"
 	}
@@ -130,8 +130,37 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 		spec.TaskTemplate.Placement.Constraints = append(spec.TaskTemplate.Placement.Constraints, placement)
 	}
 
+	// secrets
+	secretRefs := []*swarm.SecretReference{}
+	for _, secret := range target.Spec.Secrets {
+		fileTarget := swarm.SecretReferenceFileTarget{
+			Name: secret.Target,
+			UID:  "0",
+			GID:  "0",
+			Mode: os.FileMode(0444),
+		}
+
+		// secretID and SecretName are mandatory, we have invalid references without them
+		secretID := ""
+		for _, swarmSecret := range swarmSecrets {
+			if swarmSecret.Spec.Name == secret.Source {
+				secretID = swarmSecret.ID
+				break
+			}
+		}
+
+		secretRef := swarm.SecretReference{
+			File:       &fileTarget,
+			SecretName: secret.Source,
+			SecretID:   secretID,
+		}
+
+		secretRefs = append(secretRefs, &secretRef)
+	}
+	spec.TaskTemplate.ContainerSpec.Secrets = secretRefs
+
 	// config
-	configRegs := []*swarm.ConfigReference{}
+	configRefs := []*swarm.ConfigReference{}
 	for _, config := range target.Spec.Configs {
 		fileTarget := swarm.ConfigReferenceFileTarget{
 			Name: config.Target,
@@ -155,9 +184,9 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 			ConfigID:   configID,
 		}
 
-		configRegs = append(configRegs, &configRef)
+		configRefs = append(configRefs, &configRef)
 	}
-	spec.TaskTemplate.ContainerSpec.Configs = configRegs
+	spec.TaskTemplate.ContainerSpec.Configs = configRefs
 
 	return spec
 }
@@ -434,13 +463,17 @@ func (m *ServiceManager) List(ctx context.Context, opts types.ServiceFilterOptio
 func (m *ServiceManager) Redeploy(ctx context.Context, id string) error {
 	logger := log.FromContext(ctx)
 
-	// get docker network
+	// get docker networks
 	networkOpts := dockerTypes.NetworkListOptions{}
 	networkList, err := m.client.NetworkList(ctx, networkOpts)
 
-	// get docker config
+	// get docker configs
 	configOpts := dockerTypes.ConfigListOptions{}
 	configList, err := m.client.ConfigList(ctx, configOpts)
+
+	// get docker secrets
+	secretOpts := dockerTypes.SecretListOptions{}
+	secretList, err := m.client.SecretList(ctx, secretOpts)
 
 	// get service
 	service, err := m.ServiceGetByID(ctx, id)
@@ -448,7 +481,7 @@ func (m *ServiceManager) Redeploy(ctx context.Context, id string) error {
 		return err
 	}
 
-	dockerSvcSpec := newDockerServiceSpec(service, networkList, configList)
+	dockerSvcSpec := newDockerServiceSpec(service, networkList, configList, secretList)
 
 	// get old spec
 	serviceInspectOptions := dockerTypes.ServiceInspectOptions{}

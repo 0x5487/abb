@@ -80,7 +80,7 @@ func NewClusterDatabase(db *sqlx.DB) types.ClusterRepository {
 	}
 }
 
-const clusterCreateSQL = "INSERT INTO `clusters` (`id`, `name`, `host`, `created_at`, `updated_at`) VALUES (UNHEX(:id), :name, :host, :created_at, :updated_at);"
+const clusterCreateSQL = "INSERT INTO `clusters` (`id`, `name`, `host`, `sort`, `created_at`, `updated_at`) VALUES (UNHEX(:id), :name, :host, :sort, :created_at, :updated_at);"
 
 func (c *ClusterDatabase) ClusterCreate(ctx context.Context, entity *types.Cluster) error {
 	logger := log.FromContext(ctx)
@@ -99,7 +99,7 @@ func (c *ClusterDatabase) ClusterCreate(ctx context.Context, entity *types.Clust
 	return nil
 }
 
-const clusterUpdateSQL = "UPDATE `clusters` SET `name`= :name, `host`= :host, `created_at`= :created_at, `updated_at`= :updated_at where id = UNHEX(:id);"
+const clusterUpdateSQL = "UPDATE `clusters` SET `name`= :name, `host`= :host, `sort` = :sort, `created_at`= :created_at, `updated_at`= :updated_at where id = UNHEX(:id);"
 
 func (c *ClusterDatabase) ClusterUpdate(ctx context.Context, entity *types.Cluster) error {
 	logger := log.FromContext(ctx)
