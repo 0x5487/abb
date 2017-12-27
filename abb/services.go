@@ -54,6 +54,7 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 	spec.Annotations.Name = target.Name
 	spec.TaskTemplate.ContainerSpec.Image = target.Spec.Image
 	spec.TaskTemplate.ContainerSpec.Env = target.Spec.Environments
+	spec.TaskTemplate.ContainerSpec.Command = target.Spec.Command
 
 	switch strings.ToLower(target.Spec.Deploy.Mode) {
 	case "global":

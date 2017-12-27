@@ -40,6 +40,7 @@ type ServiceSpec struct {
 	Image        string          `json:"image" db:"-" bson:"image"`
 	Ports        []PortInfo      `json:"ports" db:"-" bson:"ports"`
 	Volumes      []VolumeInfo    `json:"volumes" db:"-" bson:"volumes"`
+	Command      []string        `json:"command" db:"-" bson:"command"`
 	Environments []string        `json:"environments" db:"-" bson:"environments"`
 	Configs      []ServiceConfig `json:"configs" db:"-" bson:"configs"`
 	Secrets      []ServiceSecret `json:"secrets" db:"-" bson:"secrets"`
