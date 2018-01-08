@@ -42,7 +42,9 @@ func newDockerServiceSpec(target *types.Service, networks []dockerTypes.NetworkR
 		},
 		EndpointSpec: &swarm.EndpointSpec{},
 		UpdateConfig: &swarm.UpdateConfig{
-			Order: target.Spec.Deploy.UpdateConfig.Order,
+			Order:       target.Spec.Deploy.UpdateConfig.Order,
+			Parallelism: target.Spec.Deploy.UpdateConfig.Parallelism,
+			Delay:       target.Spec.Deploy.UpdateConfig.Delay,
 		},
 	}
 

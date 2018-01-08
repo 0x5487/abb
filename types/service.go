@@ -95,7 +95,9 @@ type RestartPolicy struct {
 }
 
 type UpdateConfig struct {
-	Order string `json:"order"`
+	Parallelism uint64        `json:"parallelism"`
+	Order       string        `json:"order"`
+	Delay       time.Duration `json:"delay"`
 }
 
 type Deploy struct {
